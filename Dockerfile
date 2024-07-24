@@ -7,7 +7,7 @@ ENV GOLANG_VERSION 1.22.5
 
 # Add Maintainer Info
 LABEL maintainer="cgil"
-LABEL org.opencontainers.image.title="go-cloud-k8s-shell"
+LABEL org.opencontainers.image.title="go-cloud-k8s-common"
 LABEL org.opencontainers.image.description="This is a go-cloud-k8s-common container image, demo for my common packages i use in my Go programs, without standard go http package (not using framework)"
 LABEL org.opencontainers.image.url="https://ghcr.io/lao-tseu-is-alive/go-cloud-k8s-common:latest"
 LABEL org.opencontainers.image.authors="cgil"
