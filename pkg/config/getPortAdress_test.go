@@ -22,17 +22,17 @@ func TestGetPortFromEnv(t *testing.T) {
 		{
 			name: "should return the default values when env variables are not set",
 			args: args{
-				defaultPort: 8080,
+				defaultPort: 9999,
 			},
 			envPORT:       "",
-			want:          ":8080",
+			want:          ":9999",
 			wantErr:       assert.NoError,
 			wantErrPrefix: "",
 		},
 		{
 			name: "should return SERVERIP:PORT when env variables are set to valid values",
 			args: args{
-				defaultPort: 8080,
+				defaultPort: 9999,
 			},
 			envPORT:       "3333",
 			want:          ":3333",
@@ -42,7 +42,7 @@ func TestGetPortFromEnv(t *testing.T) {
 		{
 			name: "should return an empty string and report an error when PORT is not a number",
 			args: args{
-				defaultPort: 8080,
+				defaultPort: 9999,
 			},
 			envPORT:       "aBigOne",
 			want:          "",
@@ -52,7 +52,7 @@ func TestGetPortFromEnv(t *testing.T) {
 		{
 			name: "should return an empty string and report an error when PORT is < 1",
 			args: args{
-				defaultPort: 8080,
+				defaultPort: 9999,
 			},
 			envPORT:       "0",
 			want:          "",
@@ -62,7 +62,7 @@ func TestGetPortFromEnv(t *testing.T) {
 		{
 			name: "should return an empty string and report an error when PORT is > 65535",
 			args: args{
-				defaultPort: 8080,
+				defaultPort: 9999,
 			},
 			envPORT:       "70000",
 			want:          "",

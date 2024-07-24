@@ -4,7 +4,6 @@ import "time"
 
 const (
 	defaultProtocol            = "http"
-	defaultPort                = 8080
 	defaultSecondsToSleep      = 3
 	secondsShutDownTimeout     = 5 * time.Second  // maximum number of second to wait before closing server
 	defaultReadTimeout         = 10 * time.Second // max time to read request from the client
