@@ -335,7 +335,7 @@ func TestMainExecution(t *testing.T) {
 			name:                         "Get on default get handler should contain the Appname field",
 			wantStatusCode:               http.StatusOK,
 			contentType:                  go_http.MIMEAppJSON,
-			wantBody:                     fmt.Sprintf("\"appname\": \"%s\"", version.APP),
+			wantBody:                     fmt.Sprintf("\"appname\": \"%s\"", APP),
 			paramKeyValues:               make(map[string]string),
 			httpMethod:                   http.MethodGet,
 			url:                          "/",
