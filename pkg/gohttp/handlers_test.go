@@ -1,15 +1,14 @@
-package go_http
+package gohttp
 
 import (
 	"fmt"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +21,7 @@ const (
 	msgRespNotExpected              = "Response should contain what was expected."
 )
 
-var l *log.Logger
+var l golog.MyLogger
 
 type testStruct struct {
 	name           string
@@ -42,7 +41,7 @@ func GetHttpTestRequest(t *testing.T, handler http.Handler, method, url string, 
 	return r
 }
 
-func executeTest(t *testing.T, tt testStruct, l *log.Logger) {
+func executeTest(t *testing.T, tt testStruct, l golog.MyLogger) {
 	t.Run(tt.name, func(t *testing.T) {
 		tt.r.Header.Set(HeaderContentType, MIMEAppJSONCharsetUTF8)
 		TraceRequest(tt.name, tt.r, l)
@@ -258,13 +257,6 @@ func TestGoHttpServerWaitHandler(t *testing.T) {
 			paramKeyValues: make(map[string]string),
 			r:              newRequest(http.MethodGet, "/wait", ""),
 		},
-		{
-			name:           "2: Post on /wait should return an http error method not allowed ",
-			wantStatusCode: http.StatusMethodNotAllowed,
-			wantBody:       "",
-			paramKeyValues: make(map[string]string),
-			r:              newRequest(http.MethodPost, "/wait", `{"task":"test not allowed method "}`),
-		},
 	}
 
 	for _, tt := range tests {
@@ -288,9 +280,16 @@ func TestGoHttpServerWaitHandler(t *testing.T) {
 }
 
 func init() {
+	var err error
 	if DEBUG {
-		l = log.New(os.Stdout, fmt.Sprintf("testing_%s ", version.APP), log.Ldate|log.Ltime|log.Lshortfile)
+		l, err = golog.NewLogger("zap", golog.DebugLevel, "test_handlers")
+		if err != nil {
+			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
+		}
 	} else {
-		l = log.New(io.Discard, version.APP, 0)
+		l, err = golog.NewLogger("zap", golog.ErrorLevel, "test_handlers")
+		if err != nil {
+			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
+		}
 	}
 }

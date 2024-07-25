@@ -1,4 +1,4 @@
-package go_http
+package gohttp
 
 import "time"
 

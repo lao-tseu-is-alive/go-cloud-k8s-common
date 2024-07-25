@@ -1,4 +1,4 @@
-package go_http
+package gohttp
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -19,20 +20,20 @@ import (
 	"time"
 )
 
-// GoHttpServer is a struct type to store information related to all handlers of web server
-type GoHttpServer struct {
+// Server is a struct type to store information related to all handlers of web server
+type Server struct {
 	listenAddress string
 	// later we will store here the connection to database
 	//DB  *db.Conn
-	logger     *log.Logger
+	logger     golog.MyLogger
 	router     *http.ServeMux
 	registry   *prometheus.Registry
 	startTime  time.Time
 	httpServer http.Server
 }
 
-// NewGoHttpServer is a constructor that initializes the server mux (routes) and all fields of the  GoHttpServer type
-func NewGoHttpServer(listenAddress string, logger *log.Logger) *GoHttpServer {
+// NewGoHttpServer is a constructor that initializes the server mux (routes) and all fields of the  Server type
+func NewGoHttpServer(listenAddress string, logger golog.MyLogger) *Server {
 	myServerMux := http.NewServeMux()
 	// Create non-global registry.
 	registry := prometheus.NewRegistry()
@@ -46,7 +47,14 @@ func NewGoHttpServer(listenAddress string, logger *log.Logger) *GoHttpServer {
 	registry.MustRegister(RootPathGetCounter)
 	registry.MustRegister(rootPathNotFoundCounter)
 
-	myServer := GoHttpServer{
+	var defaultHttpLogger *log.Logger
+	defaultHttpLogger, err := logger.GetDefaultLogger()
+	if err != nil {
+		// in case we cannot get a valid log.Logger for http let's create a reasonable one
+		defaultHttpLogger = log.New(os.Stderr, "NewGoHttpServer::defaultHttpLogger", log.Ldate|log.Ltime|log.Lshortfile)
+	}
+
+	myServer := Server{
 		listenAddress: listenAddress,
 		logger:        logger,
 		router:        myServerMux,
@@ -55,7 +63,7 @@ func NewGoHttpServer(listenAddress string, logger *log.Logger) *GoHttpServer {
 		httpServer: http.Server{
 			Addr:         listenAddress,       // configure the bind address
 			Handler:      myServerMux,         // set the http mux
-			ErrorLog:     logger,              // set the logger for the server
+			ErrorLog:     defaultHttpLogger,   // set the logger for the server
 			ReadTimeout:  defaultReadTimeout,  // max time to read request from the client
 			WriteTimeout: defaultWriteTimeout, // max time to write response to the client
 			IdleTimeout:  defaultIdleTimeout,  // max time for connections using TCP Keep-Alive
@@ -66,8 +74,8 @@ func NewGoHttpServer(listenAddress string, logger *log.Logger) *GoHttpServer {
 	return &myServer
 }
 
-// (*GoHttpServer) routes initializes all the handlers paths of this web server, it is called inside the NewGoHttpServer constructor
-func (s *GoHttpServer) routes() {
+// (*Server) routes initializes all the handlers paths of this web server, it is called inside the NewGoHttpServer constructor
+func (s *Server) routes() {
 
 	s.router.Handle("GET /time", GetTimeHandler(s.logger))
 	s.router.Handle("GET /wait", GetWaitHandler(defaultSecondsToSleep, s.logger))
@@ -85,59 +93,59 @@ func (s *GoHttpServer) routes() {
 }
 
 // AddRoute   adds a handler for this web server
-func (s *GoHttpServer) AddRoute(pathPattern string, handler http.Handler) {
+func (s *Server) AddRoute(pathPattern string, handler http.Handler) {
 	s.router.Handle(pathPattern, handler)
 }
 
 // GetRouter returns the ServeMux of this web server
-func (s *GoHttpServer) GetRouter() *http.ServeMux {
+func (s *Server) GetRouter() *http.ServeMux {
 	return s.router
 }
 
 // GetRegistry returns the Prometheus registry of this web server
-func (s *GoHttpServer) GetRegistry() *prometheus.Registry {
+func (s *Server) GetRegistry() *prometheus.Registry {
 	return s.registry
 }
 
 // GetLog returns the log of this web server
-func (s *GoHttpServer) GetLog() *log.Logger {
+func (s *Server) GetLog() golog.MyLogger {
 	return s.logger
 }
 
 // GetStartTime returns the start time of this web server
-func (s *GoHttpServer) GetStartTime() time.Time {
+func (s *Server) GetStartTime() time.Time {
 	return s.startTime
 }
 
 // StartServer initializes all the handlers paths of this web server, it is called inside the NewGoHttpServer constructor
-func (s *GoHttpServer) StartServer() {
+func (s *Server) StartServer() {
 
 	// Starting the web server in his own goroutine
 	go func() {
-		s.logger.Printf("INFO: Starting http server listening at %s://%s/", defaultProtocol, s.listenAddress)
+		s.logger.Debug("http server listening at %s://%s/", defaultProtocol, s.listenAddress)
 		err := s.httpServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.logger.Fatalf("💥💥 ERROR: 'Could not listen on %q: %s'\n", s.listenAddress, err)
+			s.logger.Fatal("💥💥 ERROR: 'Could not listen on %q: %s'\n", s.listenAddress, err)
 		}
 	}()
-	s.logger.Printf("Server listening on : %s PID:[%d]", s.httpServer.Addr, os.Getpid())
+	s.logger.Debug("Server listening on : %s PID:[%d]", s.httpServer.Addr, os.Getpid())
 
 	// Graceful Shutdown on SIGINT (interrupt)
 	waitForShutdownToExit(&s.httpServer, secondsShutDownTimeout)
 
 }
 
-func (s *GoHttpServer) JsonResponse(w http.ResponseWriter, result interface{}) error {
+func (s *Server) JsonResponse(w http.ResponseWriter, result interface{}) error {
 	body, err := json.Marshal(result)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		s.logger.Printf("ERROR: 'JSON marshal failed. Error: %v'", err)
+		s.logger.Error("JSON marshal failed. Error: %v", err)
 		return err
 	}
 	var prettyOutput bytes.Buffer
 	err = json.Indent(&prettyOutput, body, "", "  ")
 	if err != nil {
-		s.logger.Printf("ERROR: 'JSON Indent failed. Error: %v'", err)
+		s.logger.Error("JSON Indent failed. Error: %v", err)
 		return err
 	}
 	w.Header().Set(HeaderContentType, MIMEAppJSONCharsetUTF8)
@@ -145,7 +153,7 @@ func (s *GoHttpServer) JsonResponse(w http.ResponseWriter, result interface{}) e
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(prettyOutput.Bytes())
 	if err != nil {
-		s.logger.Printf("ERROR: 'w.Write failed. Error: %v'", err)
+		s.logger.Error("w.Write failed. Error: %v", err)
 		return err
 	}
 	return nil
@@ -220,10 +228,10 @@ func getHtmlPage(title string, description string) string {
 	return getHtmlHeader(title, description) +
 		fmt.Sprintf("\n<body><div class=\"container\"><h4>%s</h4></div></body></html>", title)
 }
-func TraceRequest(handlerName string, r *http.Request, l *log.Logger) {
+func TraceRequest(handlerName string, r *http.Request, l golog.MyLogger) {
 	const formatTraceRequest = "TraceRequest:[%s] %s '%s', RemoteIP: [%s],id:%s\n"
 	remoteIp := r.RemoteAddr // ip address of the original request or the last proxy
 	requestedUrlPath := r.URL.Path
 	guid := xid.New()
-	l.Printf(formatTraceRequest, handlerName, r.Method, requestedUrlPath, remoteIp, guid.String())
+	l.Debug(formatTraceRequest, handlerName, r.Method, requestedUrlPath, remoteIp, guid.String())
 }

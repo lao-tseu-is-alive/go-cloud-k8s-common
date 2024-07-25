@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/go_http"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
 	"github.com/rs/xid"
@@ -20,15 +21,15 @@ const (
 	defaultServerPath = "/"
 )
 
-func GetMyDefaultHandler(s *go_http.GoHttpServer) http.HandlerFunc {
+func GetMyDefaultHandler(s *gohttp.Server) http.HandlerFunc {
 	handlerName := "GetMyDefaultHandler"
 	logger := s.GetLog()
-	logger.Printf("Initial call to %s", handlerName)
+	logger.Debug("Initial call to %s", handlerName)
 
 	data := info.CollectRuntimeInfo(APP, version.VERSION, logger)
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		go_http.TraceRequest(handlerName, r, logger)
+		gohttp.TraceRequest(handlerName, r, logger)
 		query := r.URL.Query()
 		nameValue := query.Get("name")
 		if nameValue != "" {
@@ -40,37 +41,41 @@ func GetMyDefaultHandler(s *go_http.GoHttpServer) http.HandlerFunc {
 		data.Uptime = fmt.Sprintf("%s", time.Since(s.GetStartTime()))
 		uptimeOS, err := info.GetOsUptime()
 		if err != nil {
-			logger.Printf("💥💥 ERROR: 'GetOsUptime() returned an error : %+#v'", err)
+			logger.Error("💥💥 ERROR: 'GetOsUptime() returned an error : %+#v'", err)
 		}
 		data.UptimeOs = uptimeOS
 		guid := xid.New()
 		data.RequestId = guid.String()
-		go_http.RootPathGetCounter.Inc()
+		gohttp.RootPathGetCounter.Inc()
 		err = s.JsonResponse(w, data)
 		if err != nil {
-			logger.Printf("ERROR:  %v doing JsonResponse in %s, from IP: [%s]\n", err, handlerName, r.RemoteAddr)
+			logger.Error("ERROR:  %v doing JsonResponse in %s, from IP: [%s]\n", err, handlerName, r.RemoteAddr)
 			return
 		}
-		logger.Printf("SUCCESS: [%s] from IP: [%s]\n", handlerName, r.RemoteAddr)
+		logger.Info("SUCCESS: [%s] from IP: [%s]\n", handlerName, r.RemoteAddr)
 	}
 }
 
 func main() {
+
+	l, err := golog.NewLogger("zap", golog.DebugLevel, APP)
+	if err != nil {
+		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
+	}
+	l.Info("🚀🚀 Starting App %s version:%s from %s", APP, version.VERSION, version.REPOSITORY)
 	listenAddr, err := config.GetPortFromEnv(defaultPort)
 	if err != nil {
-		log.Fatalf("💥💥 ERROR: 'calling GetPortFromEnv got error: %v'\n", err)
+		l.Fatal("💥💥 ERROR: 'calling GetPortFromEnv got error: %v'\n", err)
 	}
 	listenAddr = defaultServerIp + listenAddr
-	l := log.New(os.Stdout, fmt.Sprintf("HTTP_SERVER_%s ", version.APP), log.Ldate|log.Ltime|log.Lshortfile)
-	l.Printf("INFO: '🚀🚀 App %s version:%s  from %s'", version.APP, version.VERSION, version.REPOSITORY)
-	l.Printf("INFO: 'Starting %s version:%s HTTP server on port %s'", version.APP, version.VERSION, listenAddr)
-	server := go_http.NewGoHttpServer(listenAddr, l)
+	l.Info("HTTP server listening %s'", listenAddr)
+	server := gohttp.NewGoHttpServer(listenAddr, l)
 	// curl -vv  -X POST -H 'Content-Type: application/json'  http://localhost:9999/time   ==> 405 Method Not Allowed,
 	// curl -vv  -X GET  -H 'Content-Type: application/json'  http://localhost:9999/time	==>200 OK , {"time":"2024-07-15T15:30:21+02:00"}
-	server.AddRoute("GET /hello", go_http.GetHandlerStaticPage("Hello", "Hello World!", l))
+	server.AddRoute("GET /hello", gohttp.GetHandlerStaticPage("Hello", "Hello World!", l))
 	// using new server Mux in Go 1.22 https://pkg.go.dev/net/http#ServeMux
 	mux := server.GetRouter()
-	mux.Handle("GET /{$}", go_http.NewMiddleware(
+	mux.Handle("GET /{$}", gohttp.NewMiddleware(
 		server.GetRegistry(), nil).
 		WrapHandler("GET /$", GetMyDefaultHandler(server)),
 	)

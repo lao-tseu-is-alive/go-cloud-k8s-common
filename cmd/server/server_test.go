@@ -4,10 +4,10 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/go_http"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
@@ -29,7 +29,7 @@ const (
 	msgRespNotExpected              = "Response should contain what was expected."
 )
 
-var l *log.Logger
+var l golog.MyLogger
 
 type TestMainStruct struct {
 	name                         string
@@ -46,7 +46,7 @@ type TestMainStruct struct {
 func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 	var nameParameter string
 	listenAddr := fmt.Sprintf(":%d", defaultPort)
-	myServer := go_http.NewGoHttpServer(listenAddr, l)
+	myServer := gohttp.NewGoHttpServer(listenAddr, l)
 	ts := httptest.NewServer(GetMyDefaultHandler(myServer))
 	defer ts.Close()
 
@@ -95,8 +95,8 @@ func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 				tt.r.URL.RawQuery = parameters.Encode()
 			}
 			resp, err := http.DefaultClient.Do(tt.r)
-			l.Printf(fmtTraceInfo, tt.name, tt.r.Method, tt.r.URL)
-			defer go_http.CloseBody(resp.Body, tt.name, l)
+			l.Debug(fmtTraceInfo, tt.name, tt.r.Method, tt.r.URL)
+			defer gohttp.CloseBody(resp.Body, tt.name, l)
 			if err != nil {
 				fmt.Printf(fmtErr, err, resp.Body)
 				t.Fatal(err)
@@ -104,7 +104,7 @@ func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 			assert.Equal(t, tt.wantStatusCode, resp.StatusCode, assertCorrectStatusCodeExpected)
 			receivedJson, _ := io.ReadAll(resp.Body)
 			rInfo := &info.RuntimeInfo{}
-			l.Println("param name : % v", nameParameter)
+			l.Debug("param name : % v", nameParameter)
 			tools.PrintWantedReceived(tt.wantBody, receivedJson, l)
 			if tt.wantStatusCode == http.StatusOK {
 				err = json.Unmarshal(receivedJson, rInfo)
@@ -118,7 +118,6 @@ func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 
 func TestGetJsonFromUrl(t *testing.T) {
 
-	l := log.New(os.Stdout, version.APP, log.Lshortfile)
 	const authToken = "test-token"
 	expectedBody := `{"key": "value"}`
 	// Create a mock server
@@ -177,7 +176,7 @@ func TestGetJsonFromUrl(t *testing.T) {
 		bearerToken   string
 		caCert        []byte
 		allowInsecure bool
-		logger        *log.Logger
+		logger        golog.MyLogger
 	}
 	tests := []struct {
 		name    string
@@ -280,14 +279,14 @@ func newRequest(t *testing.T, method, url, body string, useFormUrlencodedContent
 		t.Fatalf(fmtErrNewRequest, method, url, err)
 	}
 	if method == http.MethodPost && useFormUrlencodedContentType {
-		r.Header.Set(go_http.HeaderContentType, "Application/x-www-form-urlencoded")
+		r.Header.Set(gohttp.HeaderContentType, "Application/x-www-form-urlencoded")
 	} else {
-		r.Header.Set(go_http.HeaderContentType, go_http.MIMEAppJSON)
+		r.Header.Set(gohttp.HeaderContentType, gohttp.MIMEAppJSON)
 	}
 	return r
 }
 
-func executeTest(t *testing.T, tt TestMainStruct, listenAddr string, l *log.Logger) {
+func executeTest(t *testing.T, tt TestMainStruct, listenAddr string, l golog.MyLogger) {
 	t.Run(tt.name, func(t *testing.T) {
 		// prepare the request for this test case
 		r := newRequest(t, tt.httpMethod, listenAddr+tt.url, tt.body, tt.useFormUrlencodedContentType)
@@ -298,19 +297,19 @@ func executeTest(t *testing.T, tt TestMainStruct, listenAddr string, l *log.Logg
 			}
 			r.URL.RawQuery = parameters.Encode()
 		}
-		l.Printf(fmtTraceInfo, tt.name, tt.httpMethod, tt.url)
+		l.Debug(fmtTraceInfo, tt.name, tt.httpMethod, tt.url)
 		resp, err := http.DefaultClient.Do(r)
 		if err != nil {
 			fmt.Printf(fmtErr, err, resp.Body)
 			t.Fatal(err)
 		}
-		defer go_http.CloseBody(resp.Body, tt.name, l)
+		defer gohttp.CloseBody(resp.Body, tt.name, l)
 		assert.Equal(t, tt.wantStatusCode, resp.StatusCode, assertCorrectStatusCodeExpected)
 		receivedJson, _ := io.ReadAll(resp.Body)
 		rInfo := &info.RuntimeInfo{}
 		tools.PrintWantedReceived(tt.wantBody, receivedJson, l)
 		if tt.wantStatusCode == http.StatusOK {
-			if tt.contentType == go_http.MIMEAppJSON {
+			if tt.contentType == gohttp.MIMEAppJSON {
 				err = json.Unmarshal(receivedJson, rInfo)
 				assert.Nil(t, err, "the output should be a valid json")
 			}
@@ -328,13 +327,13 @@ func TestMainExecution(t *testing.T) {
 	// starting main in his own go routine
 	var wg sync.WaitGroup
 	startMainServer(&wg)
-	go_http.WaitForHttpServer(listenAddr, 1*time.Second, 10)
+	gohttp.WaitForHttpServer(listenAddr, 1*time.Second, 10)
 
 	tests := []TestMainStruct{
 		{
 			name:                         "Get on default get handler should contain the Appname field",
 			wantStatusCode:               http.StatusOK,
-			contentType:                  go_http.MIMEAppJSON,
+			contentType:                  gohttp.MIMEAppJSON,
 			wantBody:                     fmt.Sprintf("\"appname\": \"%s\"", APP),
 			paramKeyValues:               make(map[string]string),
 			httpMethod:                   http.MethodGet,
@@ -345,7 +344,7 @@ func TestMainExecution(t *testing.T) {
 		{
 			name:                         "Post on default get handler should return an http error method not allowed ",
 			wantStatusCode:               http.StatusMethodNotAllowed,
-			contentType:                  go_http.MIMEAppJSON,
+			contentType:                  gohttp.MIMEAppJSON,
 			wantBody:                     "Method Not Allowed",
 			paramKeyValues:               make(map[string]string),
 			httpMethod:                   http.MethodPost,
@@ -356,7 +355,7 @@ func TestMainExecution(t *testing.T) {
 		{
 			name:                         "Get on nonexistent route should return an http error not found ",
 			wantStatusCode:               http.StatusNotFound,
-			contentType:                  go_http.MIMEAppJSON,
+			contentType:                  gohttp.MIMEAppJSON,
 			wantBody:                     "page not found",
 			paramKeyValues:               make(map[string]string),
 			httpMethod:                   http.MethodGet,
@@ -367,7 +366,7 @@ func TestMainExecution(t *testing.T) {
 		{
 			name:                         "Get on default Server Path should return a valid json containing param value",
 			wantStatusCode:               http.StatusOK,
-			contentType:                  go_http.MIMEAppJSON,
+			contentType:                  gohttp.MIMEAppJSON,
 			wantBody:                     `"param_name": "╚»☯💥⚡✌ℂ𝔾𝕀𝕃✌⚡💥☯«╝"`,
 			paramKeyValues:               map[string]string{"name": "╚»☯💥⚡✌ℂ𝔾𝕀𝕃✌⚡💥☯«╝"},
 			httpMethod:                   http.MethodGet,
@@ -378,7 +377,7 @@ func TestMainExecution(t *testing.T) {
 		{
 			name:                         "/health Post should return an http error method not allowed ",
 			wantStatusCode:               http.StatusMethodNotAllowed,
-			contentType:                  go_http.MIMEAppJSON,
+			contentType:                  gohttp.MIMEAppJSON,
 			wantBody:                     "",
 			paramKeyValues:               make(map[string]string),
 			httpMethod:                   http.MethodPost,
@@ -389,7 +388,7 @@ func TestMainExecution(t *testing.T) {
 		{
 			name:                         "/readiness Post should return an http error method not allowed ",
 			wantStatusCode:               http.StatusMethodNotAllowed,
-			contentType:                  go_http.MIMEAppJSON,
+			contentType:                  gohttp.MIMEAppJSON,
 			wantBody:                     "",
 			paramKeyValues:               make(map[string]string),
 			httpMethod:                   http.MethodPost,
@@ -400,7 +399,7 @@ func TestMainExecution(t *testing.T) {
 		{
 			name:                         "/time Post should return an http error method not allowed ",
 			wantStatusCode:               http.StatusMethodNotAllowed,
-			contentType:                  go_http.MIMEAppJSON,
+			contentType:                  gohttp.MIMEAppJSON,
 			wantBody:                     "",
 			paramKeyValues:               make(map[string]string),
 			httpMethod:                   http.MethodPost,
@@ -411,7 +410,7 @@ func TestMainExecution(t *testing.T) {
 		{
 			name:                         "/hello Get should return a welcome message",
 			wantStatusCode:               http.StatusOK,
-			contentType:                  go_http.MIMEHtml,
+			contentType:                  gohttp.MIMEHtml,
 			wantBody:                     "Hello World!",
 			paramKeyValues:               make(map[string]string),
 			httpMethod:                   http.MethodGet,
@@ -427,9 +426,16 @@ func TestMainExecution(t *testing.T) {
 }
 
 func init() {
+	var err error
 	if DEBUG {
-		l = log.New(os.Stdout, fmt.Sprintf("testing_%s ", version.APP), log.Ldate|log.Ltime|log.Lshortfile)
+		l, err = golog.NewLogger("zap", golog.DebugLevel, fmt.Sprintf("testing_%s ", APP))
+		if err != nil {
+			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
+		}
 	} else {
-		l = log.New(io.Discard, version.APP, 0)
+		l, err = golog.NewLogger("zap", golog.ErrorLevel, fmt.Sprintf("testing_%s ", APP))
+		if err != nil {
+			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
+		}
 	}
 }

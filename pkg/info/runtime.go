@@ -1,7 +1,7 @@
 package info
 
 import (
-	"log"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"os"
 	"runtime"
 	"strconv"
@@ -35,28 +35,28 @@ type RuntimeInfo struct {
 	Headers             map[string][]string `json:"headers"`               // received headers
 }
 
-func CollectRuntimeInfo(appName, version string, l *log.Logger) RuntimeInfo {
+func CollectRuntimeInfo(appName, version string, l golog.MyLogger) RuntimeInfo {
 	hostName, err := os.Hostname()
 	if err != nil {
-		l.Printf("💥💥 ERROR: 'os.Hostname() returned an error : %v'", err)
+		l.Error("os.Hostname() returned an error : %v", err)
 		hostName = "#unknown#"
 	}
 
 	osReleaseInfo, err := GetOsInfo()
 	if err != nil {
-		l.Printf("💥💥 ERROR: 'GetOsInfo() returned an error : %+#v'", err)
+		l.Error("GetOsInfo() returned an error : %+#v'", err)
 	}
 
 	uptimeOS, err := GetOsUptime()
 	if err != nil {
-		l.Printf("💥💥 ERROR: 'GetOsUptime() returned an error : %+#v'", err)
+		l.Error("GetOsUptime() returned an error : %+#v'", err)
 	}
 
-	k8sApiUrl, k8sVersion, k8sCurrentNameSpace := GetKubernetesInfo(l)
+	k8sApiUrl, k8sVersion, k8sCurrentNameSpace := GetK8sInfo(l)
 
-	latestK8sVersion, err := GetKubernetesLatestVersion(l)
+	latestK8sVersion, err := GetK8SLatestVersion(l)
 	if err != nil {
-		l.Printf("💥💥 ERROR: 'GetKubernetesLatestVersion() returned an error : %+#v'", err)
+		l.Error("GetK8SLatestVersion() returned an error : %+#v'", err)
 	}
 
 	return RuntimeInfo{
