@@ -63,11 +63,8 @@ func main() {
 		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 	}
 	l.Info("🚀🚀 Starting App %s version:%s from %s", APP, version.VERSION, version.REPOSITORY)
-	listenAddr, err := config.GetPortFromEnv(defaultPort)
-	if err != nil {
-		l.Fatal("💥💥 ERROR: 'calling GetPortFromEnv got error: %v'\n", err)
-	}
-	listenAddr = defaultServerIp + listenAddr
+	listenPort := config.GetPortFromEnvOrPanic(defaultPort)
+	listenAddr := fmt.Sprintf("%s:%d", defaultServerIp, listenPort)
 	l.Info("HTTP server listening %s'", listenAddr)
 	server := gohttp.NewGoHttpServer(listenAddr, l)
 	// curl -vv  -X POST -H 'Content-Type: application/json'  http://localhost:9999/time   ==> 405 Method Not Allowed,
