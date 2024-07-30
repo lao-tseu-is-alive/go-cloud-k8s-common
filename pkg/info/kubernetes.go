@@ -5,8 +5,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
 	"io"
 	"net/http"
 	"os"
@@ -147,7 +147,7 @@ func GetJsonFromUrl(url string, bearerToken string, caCert []byte, allowInsecure
 		logger.Error("Error on sending request.\n[ERROR] -", err)
 		return "", err
 	}
-	defer gohttp.CloseBody(resp.Body, "GetJsonFromUrl", logger)
+	defer tools.CloseBody(resp.Body, "GetJsonFromUrl", logger)
 	if resp.StatusCode != http.StatusOK {
 		logger.Error("Error on response StatusCode is not OK Received StatusCode:%d\n", resp.StatusCode)
 		return "", errors.New(fmt.Sprintf("Error on response StatusCode:%d\n", resp.StatusCode))
@@ -217,7 +217,7 @@ func GetK8SLatestVersion(logger golog.MyLogger) (string, error) {
 		logger.Error("Error on response.\n[ERROR] -", err)
 		return fmt.Sprintf("GetK8SLatestVersion was unable to get content from %s, Error: %v", k8sUrl, err), err
 	}
-	defer gohttp.CloseBody(resp.Body, "GetK8SLatestVersion", logger)
+	defer tools.CloseBody(resp.Body, "GetK8SLatestVersion", logger)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

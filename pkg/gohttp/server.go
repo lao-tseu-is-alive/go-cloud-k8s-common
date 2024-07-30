@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -22,18 +21,20 @@ import (
 
 // Server is a struct type to store information related to all handlers of web server
 type Server struct {
-	listenAddress string
-	// later we will store here the connection to database
-	//DB  *db.Conn
-	logger     golog.MyLogger
-	router     *http.ServeMux
-	registry   *prometheus.Registry
-	startTime  time.Time
-	httpServer http.Server
+	listenAddress       string
+	logger              golog.MyLogger
+	router              *http.ServeMux
+	registry            *prometheus.Registry
+	RootPathGetCounter  prometheus.Counter
+	PathNotFoundCounter prometheus.Counter
+	startTime           time.Time
+	Authenticator       Authentication
+	VersionWriter       VersionWriter
+	httpServer          http.Server
 }
 
 // NewGoHttpServer is a constructor that initializes the server mux (routes) and all fields of the  Server type
-func NewGoHttpServer(listenAddress string, logger golog.MyLogger) *Server {
+func NewGoHttpServer(listenAddress string, Auth Authentication, Ver VersionWriter, logger golog.MyLogger) *Server {
 	myServerMux := http.NewServeMux()
 	// Create non-global registry.
 	registry := prometheus.NewRegistry()
@@ -42,6 +43,21 @@ func NewGoHttpServer(listenAddress string, logger golog.MyLogger) *Server {
 	registry.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+	v := Ver.GetVersionInfo()
+	appName := v.App
+	RootPathGetCounter := prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: fmt.Sprintf("%s_root_get_request_count", appName),
+			Help: fmt.Sprintf("Number of GET request handled by %s default root handler", appName),
+		},
+	)
+
+	rootPathNotFoundCounter := prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: fmt.Sprintf("%s_root_not_found_request_count", appName),
+			Help: fmt.Sprintf("Number of page not found handled by %s default root handler", appName),
+		},
 	)
 
 	registry.MustRegister(RootPathGetCounter)
@@ -55,11 +71,15 @@ func NewGoHttpServer(listenAddress string, logger golog.MyLogger) *Server {
 	}
 
 	myServer := Server{
-		listenAddress: listenAddress,
-		logger:        logger,
-		router:        myServerMux,
-		registry:      registry,
-		startTime:     time.Now(),
+		listenAddress:       listenAddress,
+		logger:              logger,
+		router:              myServerMux,
+		registry:            registry,
+		startTime:           time.Now(),
+		RootPathGetCounter:  RootPathGetCounter,
+		PathNotFoundCounter: rootPathNotFoundCounter,
+		Authenticator:       Auth,
+		VersionWriter:       Ver,
 		httpServer: http.Server{
 			Addr:         listenAddress,       // configure the bind address
 			Handler:      myServerMux,         // set the http mux
@@ -74,22 +94,30 @@ func NewGoHttpServer(listenAddress string, logger golog.MyLogger) *Server {
 	return &myServer
 }
 
-// (*Server) routes initializes all the handlers paths of this web server, it is called inside the NewGoHttpServer constructor
+// (*Server) routes initializes all the default handlers paths of this web server, it is called inside the NewGoHttpServer constructor
 func (s *Server) routes() {
 
 	s.router.Handle("GET /time", GetTimeHandler(s.logger))
-	s.router.Handle("GET /wait", GetWaitHandler(defaultSecondsToSleep, s.logger))
+	s.router.Handle("GET /info", GetInfoHandler(s))
+	s.router.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
+		TraceRequest("GetVersionHandler", r, s.logger)
+		err := s.JsonResponse(w, s.VersionWriter.GetVersionInfo())
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+	})
 	s.router.Handle("GET /readiness", GetReadinessHandler(s.logger))
 	s.router.Handle("GET /health", GetHealthHandler(s.logger))
 	//expose the default prometheus metrics for Go applications
-	s.router.Handle("GET /metrics", NewMiddleware(
+	s.router.Handle("GET /metrics", NewPrometheusMiddleware(
 		s.registry, nil).
 		WrapHandler("GET /metrics", promhttp.HandlerFor(
 			s.registry,
 			promhttp.HandlerOpts{}),
 		))
 
-	s.router.Handle("GET /...", GetHandlerNotFound(s.logger))
+	s.router.Handle("GET /...", GetHandlerNotFound(s.logger, s.PathNotFoundCounter))
 }
 
 // AddRoute   adds a handler for this web server
@@ -102,8 +130,8 @@ func (s *Server) GetRouter() *http.ServeMux {
 	return s.router
 }
 
-// GetRegistry returns the Prometheus registry of this web server
-func (s *Server) GetRegistry() *prometheus.Registry {
+// GetPrometheusRegistry returns the Prometheus registry of this web server
+func (s *Server) GetPrometheusRegistry() *prometheus.Registry {
 	return s.registry
 }
 
@@ -154,6 +182,7 @@ func (s *Server) JsonResponse(w http.ResponseWriter, result interface{}) error {
 	_, err = w.Write(prettyOutput.Bytes())
 	if err != nil {
 		s.logger.Error("w.Write failed. Error: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return err
 	}
 	return nil
@@ -205,20 +234,6 @@ func waitForShutdownToExit(srv *http.Server, secondsToWait time.Duration) {
 	srv.ErrorLog.Println("INFO: 'Server gracefully stopped, will exit'")
 	os.Exit(0)
 }
-
-var RootPathGetCounter = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Name: fmt.Sprintf("%s_root_get_request_count", version.APP),
-		Help: fmt.Sprintf("Number of GET request handled by %s default root handler", version.APP),
-	},
-)
-
-var rootPathNotFoundCounter = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Name: fmt.Sprintf("%s_root_not_found_request_count", version.APP),
-		Help: fmt.Sprintf("Number of page not found handled by %s default root handler", version.APP),
-	},
-)
 
 func getHtmlHeader(title string, description string) string {
 	return fmt.Sprintf("%s<meta name=\"description\" content=\"%s\"><title>%s</title></head>", htmlHeaderStart, description, title)

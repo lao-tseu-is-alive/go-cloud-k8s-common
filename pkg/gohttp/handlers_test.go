@@ -86,7 +86,7 @@ func TestGoHttpServerHandlerNotFound(t *testing.T) {
 }
 
 func TestGoHttpServerHandlerStaticPage(t *testing.T) {
-	ts := httptest.NewServer(GetHandlerStaticPage("Title", "description", l))
+	ts := httptest.NewServer(GetStaticPageHandler("Title", "description", l))
 	defer ts.Close()
 
 	newRequest := func(method, url string, body string) *http.Request {
@@ -98,7 +98,7 @@ func TestGoHttpServerHandlerStaticPage(t *testing.T) {
 	}
 	tests := []testStruct{
 		{
-			name:           "GetHandlerStaticPage GET should return Http Status Ok",
+			name:           "GetStaticPageHandler GET should return Http Status Ok",
 			wantStatusCode: http.StatusOK,
 			wantBody:       "<h4>Title</h4>",
 			paramKeyValues: make(map[string]string),

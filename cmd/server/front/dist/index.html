@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>goCloudK8sExampleFront</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js"></script>
+</head>
+<body>
+<div class="container">
+    <h3>goCloudK8sExampleFront</h3>
+    <form method="post" action="/login" id="loginForm">
+        <div class="row">
+            <div class="six columns">
+                <label for="login">Login:</label><br/>
+                <input id="login" type="text" name="login" value="" class="u-full-width">
+            </div>
+            <div class="six columns">
+                <label for="password">Password:</label><br/>
+                <input id="password" type="password"
+                       placeholder="Enter your password here" class="u-full-width">
+                <input type="hidden" id="hashed" name="hashed" >
+            </div>
+        </div>
+        <input type="submit" class="u-pull-right">
+    </form>
+    <div id="msg"></div>
+</div>
+</body>
+</html>
+
+<script>
+    const loginForm = document.getElementById("loginForm");
+    const msg = document.getElementById("msg");
+    let token = null;
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        console.log("in loginForm submit event :", e)
+        const inputPassword = document.getElementById("password");
+        const hashedPassword = CryptoJS.SHA256(inputPassword.value);
+        const inputHashedPassword = document.getElementById("hashed");
+        inputHashedPassword.value = hashedPassword;
+        console.log("hashedPassword", hashedPassword);
+        const inputs = loginForm.elements;
+        if ((inputs.login.value.length > 0) && (inputs.password.value.length > 0)) {
+            const data = new FormData(loginForm);
+            console.log("data", data);
+            const url = loginForm.action;
+            const response = await fetch(url, {
+                method: 'post',
+                body: data
+            });
+            if (!response.ok) {
+                const errorMessage = await response.text();
+                msg.innerHTML = `<h4>${errorMessage}</h4>`;
+            }
+            const jsonResponse = await response.json();
+            const niceToReadResponse = JSON.stringify(jsonResponse, null, 2);
+            if (Object.hasOwn(jsonResponse,'token')) {
+                token = jsonResponse['token'];
+            } else {
+                msg.innerHTML = `<h4> token key not found in ${niceToReadResponse}</h4>`;
+            }
+            console.log(jsonResponse);
+            msg.innerHTML = `response from server<pre>${niceToReadResponse}</pre>`;
+        } else {
+            msg.innerHTML = "<h4>Login and password values cannot be empty</h4>";
+        }
+    });
+
+</script>

@@ -7,12 +7,12 @@ import (
 	"net/http"
 )
 
-type Middleware interface {
-	// WrapHandler wraps the given HTTP handler for instrumentation.
+type PrometheusMiddleware interface {
+	// WrapHandler wraps the given HTTP handler
 	WrapHandler(handlerName string, handler http.Handler) http.HandlerFunc
 }
 
-type middleware struct {
+type prometheusMiddleware struct {
 	buckets  []float64
 	registry prometheus.Registerer
 }
@@ -22,7 +22,7 @@ type middleware struct {
 // metrics to the (newly or already) registered collectors.
 // Each has a constant label named "handler" with the provided handlerName as
 // value.
-func (m *middleware) WrapHandler(handlerName string, handler http.Handler) http.HandlerFunc {
+func (m *prometheusMiddleware) WrapHandler(handlerName string, handler http.Handler) http.HandlerFunc {
 	reg := prometheus.WrapRegistererWith(prometheus.Labels{"handler": handlerName}, m.registry)
 
 	requestsTotal := promauto.With(reg).NewCounterVec(
@@ -72,13 +72,13 @@ func (m *middleware) WrapHandler(handlerName string, handler http.Handler) http.
 	return base.ServeHTTP
 }
 
-// NewMiddleware returns a Middleware interface.
-func NewMiddleware(registry prometheus.Registerer, buckets []float64) Middleware {
+// NewPrometheusMiddleware returns a PrometheusMiddleware interface.
+func NewPrometheusMiddleware(registry prometheus.Registerer, buckets []float64) PrometheusMiddleware {
 	if buckets == nil {
 		buckets = prometheus.ExponentialBuckets(0.1, 1.5, 5)
 	}
 
-	return &middleware{
+	return &prometheusMiddleware{
 		buckets:  buckets,
 		registry: registry,
 	}
