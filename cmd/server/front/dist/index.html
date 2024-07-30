@@ -25,7 +25,18 @@
         </div>
         <input type="submit" class="u-pull-right">
     </form>
-    <div id="msg"></div>
+    <div class="row">
+        <div class="twelve columns">
+            <div id="msg"></div>
+        </div>
+    </div>
+    <div class="row">
+
+        <div class="twelve columns">
+            <label for="tokenExample">Try your Token in your bash terminal :</label>
+            <textarea class="u-full-width"  id="tokenExample" rows="3">                   </textarea>
+        </div>
+    </div>
 </div>
 </body>
 </html>
@@ -34,6 +45,7 @@
     const loginForm = document.getElementById("loginForm");
     const msg = document.getElementById("msg");
     let token = null;
+    const tokenEl = document.getElementById("tokenExample");
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         console.log("in loginForm submit event :", e)
@@ -63,6 +75,9 @@
                 msg.innerHTML = `<h4> token key not found in ${niceToReadResponse}</h4>`;
             }
             console.log(jsonResponse);
+            tokenEl.innerHTML = `export TOKEN="${token}"
+            curl -v  -H "Authorization: Bearer \${TOKEN}" http://localhost:9999/protected
+            `;
             msg.innerHTML = `response from server<pre>${niceToReadResponse}</pre>`;
         } else {
             msg.innerHTML = "<h4>Login and password values cannot be empty</h4>";

@@ -46,6 +46,33 @@ func GetMyDefaultHandler(s *gohttp.Server, webRootDir string, content embed.FS) 
 	}
 }
 
+func GetProtectedHandler(server *gohttp.Server, l golog.MyLogger) http.HandlerFunc {
+	handlerName := "GetProtectedHandler"
+	return func(w http.ResponseWriter, r *http.Request) {
+		gohttp.TraceRequest(handlerName, r, l)
+		// get the user from the context
+		claims, err := gohttp.GetJwtCustomClaims(r)
+		if err != nil {
+			l.Error("Error getting user from context: %v", err)
+			http.Error(w, "Error getting user from context", http.StatusInternalServerError)
+			return
+		}
+		currentUserId := claims.Id
+		// check if user is admin
+		if !claims.IsAdmin {
+			l.Error("User %d is not admin: %+v", currentUserId, claims)
+			http.Error(w, "User is not admin", http.StatusForbidden)
+			return
+		}
+		// respond with protected data
+		err = server.JsonResponse(w, claims)
+		if err != nil {
+			http.Error(w, "Error responding with protected data", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func main() {
 
 	l, err := golog.NewLogger("zap", golog.DebugLevel, APP)
@@ -73,9 +100,13 @@ func main() {
 	server.AddRoute("GET /hello", gohttp.GetStaticPageHandler("Hello", "Hello World!", l))
 	mux := server.GetRouter()
 	mux.Handle("POST /login", gohttp.GetLoginPostHandler(server, jwtInfo))
+	// Protected endpoint (using jwtMiddleware)
+	mux.Handle("GET /protected", gohttp.JwtMiddleware(GetProtectedHandler(server, l), jwtInfo.Secret, l))
+
 	mux.Handle("GET /*", gohttp.NewPrometheusMiddleware(
 		server.GetPrometheusRegistry(), nil).
 		WrapHandler("GET /*", GetMyDefaultHandler(server, defaultWebRootDir, content)),
 	)
+
 	server.StartServer()
 }
