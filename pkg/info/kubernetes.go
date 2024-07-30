@@ -213,7 +213,6 @@ func GetK8SLatestVersion(logger golog.MyLogger) (string, error) {
 	}
 
 	resp, err := client.Do(req)
-
 	if err != nil {
 		logger.Error("Error on response.\n[ERROR] -", err)
 		return fmt.Sprintf("GetK8SLatestVersion was unable to get content from %s, Error: %v", k8sUrl, err), err
