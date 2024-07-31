@@ -8,6 +8,7 @@ import (
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
@@ -21,7 +22,7 @@ import (
 )
 
 const (
-	DEBUG                           = false
+	DEBUG                           = true
 	assertCorrectStatusCodeExpected = "expected status code should be returned"
 	fmtErrNewRequest                = "### ERROR http.NewRequest %s on [%s] error is :%v\n"
 	fmtTraceInfo                    = "### %s : %s on %s\n"
@@ -45,9 +46,17 @@ type TestMainStruct struct {
 
 func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 	var nameParameter string
-	listenAddr := fmt.Sprintf(":%d", defaultPort)
-	myServer := gohttp.NewGoHttpServer(listenAddr, l)
-	ts := httptest.NewServer(GetMyDefaultHandler(myServer))
+	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REVISION)
+	myServer := gohttp.CreateNewServerFromEnvOrFail(
+		defaultPort,
+		defaultServerIp,
+		defaultAdminUser,
+		defaultAdminEmail,
+		defaultAdminId,
+		myVersionReader,
+		l)
+
+	ts := httptest.NewServer(GetMyDefaultHandler(myServer, defaultWebRootDir, content))
 	defer ts.Close()
 
 	newRequest := func(method, url string, body string) *http.Request {
@@ -65,17 +74,11 @@ func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 		r              *http.Request
 	}
 	tests := []testStruct{
-		{
-			name:           "1: Get on default Server Path should return a valid json containing param value",
-			wantStatusCode: http.StatusOK,
-			wantBody:       `"param_name": "╚»☯💥⚡✌ℂ𝔾𝕀𝕃✌⚡💥☯«╝"`,
-			paramKeyValues: map[string]string{"name": "╚»☯💥⚡✌ℂ𝔾𝕀𝕃✌⚡💥☯«╝"},
-			r:              newRequest(http.MethodGet, defaultServerPath, ""),
-		},
+
 		{
 			name:           "2: Get on default Server Path should return Http Status Ok",
 			wantStatusCode: http.StatusOK,
-			wantBody:       "",
+			wantBody:       "goCloudK8sExampleFront",
 			paramKeyValues: make(map[string]string),
 			r:              newRequest(http.MethodGet, defaultServerPath, ""),
 		},
@@ -83,7 +86,7 @@ func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.r.Header.Set("Content-Type", "Application/json")
+			tt.r.Header.Set(gohttp.HeaderContentType, gohttp.MIMEHtml)
 			if len(tt.paramKeyValues) > 0 {
 				parameters := tt.r.URL.Query()
 				for paramName, paramValue := range tt.paramKeyValues {
@@ -96,22 +99,21 @@ func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 			}
 			resp, err := http.DefaultClient.Do(tt.r)
 			l.Debug(fmtTraceInfo, tt.name, tt.r.Method, tt.r.URL)
-			defer gohttp.CloseBody(resp.Body, tt.name, l)
+			defer tools.CloseBody(resp.Body, tt.name, l)
 			if err != nil {
 				fmt.Printf(fmtErr, err, resp.Body)
 				t.Fatal(err)
 			}
 			assert.Equal(t, tt.wantStatusCode, resp.StatusCode, assertCorrectStatusCodeExpected)
-			receivedJson, _ := io.ReadAll(resp.Body)
-			rInfo := &info.RuntimeInfo{}
+			received, _ := io.ReadAll(resp.Body)
 			l.Debug("param name : % v", nameParameter)
-			tools.PrintWantedReceived(tt.wantBody, receivedJson, l)
+			tools.PrintWantedReceived(tt.wantBody, received, l)
 			if tt.wantStatusCode == http.StatusOK {
-				err = json.Unmarshal(receivedJson, rInfo)
-				assert.Nil(t, err, "the output should be a valid json")
+				if tt.wantBody != "" {
+					// check that received contains the specified tt.wantBody substring . https://pkg.go.dev/github.com/stretchr/testify/assert#Contains
+					assert.Contains(t, string(received), tt.wantBody, msgRespNotExpected)
+				}
 			}
-			// check that receivedJson contains the specified tt.wantBody substring . https://pkg.go.dev/github.com/stretchr/testify/assert#Contains
-			assert.Contains(t, string(receivedJson), tt.wantBody, msgRespNotExpected)
 		})
 	}
 }
@@ -303,7 +305,7 @@ func executeTest(t *testing.T, tt TestMainStruct, listenAddr string, l golog.MyL
 			fmt.Printf(fmtErr, err, resp.Body)
 			t.Fatal(err)
 		}
-		defer gohttp.CloseBody(resp.Body, tt.name, l)
+		defer tools.CloseBody(resp.Body, tt.name, l)
 		assert.Equal(t, tt.wantStatusCode, resp.StatusCode, assertCorrectStatusCodeExpected)
 		receivedJson, _ := io.ReadAll(resp.Body)
 		rInfo := &info.RuntimeInfo{}
@@ -331,13 +333,13 @@ func TestMainExecution(t *testing.T) {
 
 	tests := []TestMainStruct{
 		{
-			name:                         "Get on default get handler should contain the Appname field",
+			name:                         "Get on info get handler should contain the Appname field",
 			wantStatusCode:               http.StatusOK,
 			contentType:                  gohttp.MIMEAppJSON,
 			wantBody:                     fmt.Sprintf("\"appname\": \"%s\"", APP),
 			paramKeyValues:               make(map[string]string),
 			httpMethod:                   http.MethodGet,
-			url:                          "/",
+			url:                          "/info",
 			useFormUrlencodedContentType: false,
 			body:                         "",
 		},
@@ -364,13 +366,13 @@ func TestMainExecution(t *testing.T) {
 			body:                         "",
 		},
 		{
-			name:                         "Get on default Server Path should return a valid json containing param value",
+			name:                         "Get on info Path should return a valid json containing param value",
 			wantStatusCode:               http.StatusOK,
 			contentType:                  gohttp.MIMEAppJSON,
 			wantBody:                     `"param_name": "╚»☯💥⚡✌ℂ𝔾𝕀𝕃✌⚡💥☯«╝"`,
 			paramKeyValues:               map[string]string{"name": "╚»☯💥⚡✌ℂ𝔾𝕀𝕃✌⚡💥☯«╝"},
 			httpMethod:                   http.MethodGet,
-			url:                          "/",
+			url:                          "/info",
 			useFormUrlencodedContentType: false,
 			body:                         "",
 		},

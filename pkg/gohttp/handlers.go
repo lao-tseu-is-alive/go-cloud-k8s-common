@@ -3,7 +3,6 @@ package gohttp
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cristalhq/jwt/v5"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
 	"github.com/prometheus/client_golang/prometheus"
@@ -92,7 +91,7 @@ func GetInfoHandler(s *Server) http.HandlerFunc {
 	handlerName := "GetInfoHandler"
 	logger := s.GetLog()
 	logger.Debug("Initial call to %s", handlerName)
-	v := s.VersionWriter.GetVersionInfo()
+	v := s.VersionReader.GetVersionInfo()
 	appName := v.App
 	ver := v.Version
 	data := info.CollectRuntimeInfo(appName, ver, logger)
@@ -124,12 +123,10 @@ func GetInfoHandler(s *Server) http.HandlerFunc {
 	}
 }
 
-func GetLoginPostHandler(s *Server, jwtInfo JwtInfo) http.HandlerFunc {
+func GetLoginPostHandler(s *Server) http.HandlerFunc {
 	handlerName := "GetLoginPostHandler"
 	logger := s.GetLog()
 	logger.Debug("Initial call to %s", handlerName)
-	JwtDuration := jwtInfo.Duration
-	JwtSecret := jwtInfo.Secret
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		TraceRequest(handlerName, r, logger)
@@ -147,39 +144,17 @@ func GetLoginPostHandler(s *Server, jwtInfo JwtInfo) http.HandlerFunc {
 		}
 
 		if s.Authenticator.AuthenticateUser(login, passwordHash) {
-			// Create the JWT claims
-			// Set custom claims
-			claims := &JwtCustomClaims{
-				RegisteredClaims: jwt.RegisteredClaims{
-					ID:        "",
-					Audience:  nil,
-					Issuer:    "",
-					Subject:   "",
-					ExpiresAt: &jwt.NumericDate{Time: time.Now().Add(time.Minute * time.Duration(JwtDuration))},
-					IssuedAt:  &jwt.NumericDate{Time: time.Now()},
-					NotBefore: nil,
-				},
-				Id:       999999,
-				Name:     "Bill Whatever",
-				Email:    "bill@whatever.com",
-				Username: login,
-				IsAdmin:  true,
-			}
-
-			// Create token with claims
-			signer, _ := jwt.NewSignerHS(jwt.HS512, []byte(JwtSecret))
-			builder := jwt.NewBuilder(signer)
-			token, err := builder.Build(claims)
+			userInfo := s.Authenticator.GetUserInfoFromLogin(login)
+			s.logger.Info(fmt.Sprintf("LoginUser(%s) succesfull login for User id (%d)", userInfo.UserLogin, userInfo.UserId))
+			token, err := s.JwtCheck.GetTokenFromUserInfo(userInfo)
 			if err != nil {
-				http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
 			}
-			msg := fmt.Sprintf("LoginUser(%s) succesfull login for user id (%d)", claims.Username, claims.Id)
-			s.logger.Info(msg)
 			// Prepare the response
 			response := map[string]string{
 				"token": token.String(),
 			}
-
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(response)

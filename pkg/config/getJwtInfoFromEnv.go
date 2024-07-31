@@ -23,6 +23,20 @@ func GetJwtSecretFromEnvOrPanic() string {
 	return fmt.Sprintf("%s", val)
 }
 
+// GetJwtIssuerFromEnvOrPanic returns a secret to be used with JWT based on the content of the env variable
+// JWT_ISSUER_ID : should exist and contain a string with your secret or this function will panic
+func GetJwtIssuerFromEnvOrPanic() string {
+	val, exist := os.LookupEnv("JWT_ISSUER_ID")
+	if !exist {
+		panic("💥💥 ERROR: ENV JWT_ISSUER_ID should contain your JWT ISSUER ID secret.")
+	}
+	if utf8.RuneCountInString(val) < minSecretLength {
+		panic(fmt.Sprintf("💥💥 ERROR: CONFIG ENV JWT_ISSUER_ID should contain at least %d characters (got %d).",
+			minSecretLength, utf8.RuneCountInString(val)))
+	}
+	return fmt.Sprintf("%s", val)
+}
+
 // GetJwtDurationFromEnvOrPanic returns a number  string based on the values of environment variable :
 // JWT_DURATION_MINUTES : int value between 1 and 14400 minutes, 10 days seems an extreme max value
 // the parameter defaultJwtDuration will be used if this env variable is not defined

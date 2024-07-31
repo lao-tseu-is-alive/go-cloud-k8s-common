@@ -6,11 +6,11 @@ type AppInfo struct {
 	Repository string `json:"repository"`
 }
 
-type VersionWriter interface {
+type VersionReader interface {
 	GetVersionInfo() AppInfo
 }
 
-// SimpleVersionWriter Create a struct that will implement the VersionWriter interface
+// SimpleVersionWriter Create a struct that will implement the VersionReader interface
 type SimpleVersionWriter struct {
 	Version AppInfo
 }
@@ -20,8 +20,8 @@ func (s SimpleVersionWriter) GetVersionInfo() AppInfo {
 	return s.Version
 }
 
-// NewSimpleVersionWriter is a constructor that initializes the VersionWriter interface
-func NewSimpleVersionWriter(app, ver, repo string) *SimpleVersionWriter {
+// NewSimpleVersionReader is a constructor that initializes the VersionReader interface
+func NewSimpleVersionReader(app, ver, repo string) *SimpleVersionWriter {
 
 	return &SimpleVersionWriter{
 		Version: AppInfo{

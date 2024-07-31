@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -29,12 +30,13 @@ type Server struct {
 	PathNotFoundCounter prometheus.Counter
 	startTime           time.Time
 	Authenticator       Authentication
-	VersionWriter       VersionWriter
+	JwtCheck            JwtChecker
+	VersionReader       VersionReader
 	httpServer          http.Server
 }
 
 // NewGoHttpServer is a constructor that initializes the server mux (routes) and all fields of the  Server type
-func NewGoHttpServer(listenAddress string, Auth Authentication, Ver VersionWriter, logger golog.MyLogger) *Server {
+func NewGoHttpServer(listenAddress string, Auth Authentication, JwtCheck JwtChecker, Ver VersionReader, logger golog.MyLogger) *Server {
 	myServerMux := http.NewServeMux()
 	// Create non-global registry.
 	registry := prometheus.NewRegistry()
@@ -79,7 +81,8 @@ func NewGoHttpServer(listenAddress string, Auth Authentication, Ver VersionWrite
 		RootPathGetCounter:  RootPathGetCounter,
 		PathNotFoundCounter: rootPathNotFoundCounter,
 		Authenticator:       Auth,
-		VersionWriter:       Ver,
+		JwtCheck:            JwtCheck,
+		VersionReader:       Ver,
 		httpServer: http.Server{
 			Addr:         listenAddress,       // configure the bind address
 			Handler:      myServerMux,         // set the http mux
@@ -94,6 +97,40 @@ func NewGoHttpServer(listenAddress string, Auth Authentication, Ver VersionWrite
 	return &myServer
 }
 
+// CreateNewServerFromEnvOrFail creates a new server from environment variables or fails
+func CreateNewServerFromEnvOrFail(
+	defaultPort int,
+	defaultServerIp string,
+	defaultAdminUser string,
+	defaultAdminEmail string,
+	defaultAdminId int,
+	myVersionReader VersionReader,
+	l golog.MyLogger,
+) *Server {
+	listenPort := config.GetPortFromEnvOrPanic(defaultPort)
+	listenAddr := fmt.Sprintf("%s:%d", defaultServerIp, listenPort)
+	l.Info("HTTP server will listen : %s", listenAddr)
+
+	// Create a new JWT checker
+	myJwt := NewJwtChecker(
+		config.GetJwtSecretFromEnvOrPanic(),
+		config.GetJwtIssuerFromEnvOrPanic(),
+		config.GetJwtDurationFromEnvOrPanic(60),
+		l)
+
+	// Create a new Authenticator with a simple admin user
+	myAuthenticator := NewSimpleAdminAuthenticator(
+		config.GetAdminUserFromFromEnvOrPanic(defaultAdminUser),
+		config.GetAdminPasswordFromFromEnvOrPanic(),
+		config.GetAdminEmailFromFromEnvOrPanic(defaultAdminEmail),
+		config.GetAdminIdFromFromEnvOrPanic(defaultAdminId),
+		myJwt)
+
+	server := NewGoHttpServer(listenAddr, myAuthenticator, myJwt, myVersionReader, l)
+	return server
+
+}
+
 // (*Server) routes initializes all the default handlers paths of this web server, it is called inside the NewGoHttpServer constructor
 func (s *Server) routes() {
 
@@ -101,7 +138,7 @@ func (s *Server) routes() {
 	s.router.Handle("GET /info", GetInfoHandler(s))
 	s.router.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
 		TraceRequest("GetVersionHandler", r, s.logger)
-		err := s.JsonResponse(w, s.VersionWriter.GetVersionInfo())
+		err := s.JsonResponse(w, s.VersionReader.GetVersionInfo())
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return

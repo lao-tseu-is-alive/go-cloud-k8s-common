@@ -2,8 +2,6 @@ package main
 
 import (
 	"embed"
-	"fmt"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
@@ -18,6 +16,9 @@ const (
 	defaultServerIp   = ""
 	defaultServerPath = "/"
 	defaultWebRootDir = "front/dist/"
+	defaultAdminId    = 99999
+	defaultAdminUser  = "goadmin"
+	defaultAdminEmail = "goadmin@lausanne.ch"
 )
 
 // content holds our static web server content.
@@ -51,21 +52,17 @@ func GetProtectedHandler(server *gohttp.Server, l golog.MyLogger) http.HandlerFu
 	return func(w http.ResponseWriter, r *http.Request) {
 		gohttp.TraceRequest(handlerName, r, l)
 		// get the user from the context
-		claims, err := gohttp.GetJwtCustomClaims(r)
-		if err != nil {
-			l.Error("Error getting user from context: %v", err)
-			http.Error(w, "Error getting user from context", http.StatusInternalServerError)
-			return
-		}
-		currentUserId := claims.Id
+		claims := gohttp.GetJwtCustomClaimsFromContext(r)
+
+		currentUserId := claims.User.UserId
 		// check if user is admin
-		if !claims.IsAdmin {
+		if !claims.User.IsAdmin {
 			l.Error("User %d is not admin: %+v", currentUserId, claims)
 			http.Error(w, "User is not admin", http.StatusForbidden)
 			return
 		}
 		// respond with protected data
-		err = server.JsonResponse(w, claims)
+		err := server.JsonResponse(w, claims)
 		if err != nil {
 			http.Error(w, "Error responding with protected data", http.StatusInternalServerError)
 			return
@@ -80,28 +77,23 @@ func main() {
 		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 	}
 	l.Info("🚀🚀 Starting App %s version:%s from %s", APP, version.VERSION, version.REPOSITORY)
-	listenPort := config.GetPortFromEnvOrPanic(defaultPort)
-	listenAddr := fmt.Sprintf("%s:%d", defaultServerIp, listenPort)
-	l.Info("HTTP server will listen : %s", listenAddr)
+	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REVISION)
+	server := gohttp.CreateNewServerFromEnvOrFail(
+		defaultPort,
+		defaultServerIp,
+		defaultAdminUser,
+		defaultAdminEmail,
+		defaultAdminId,
+		myVersionReader,
+		l)
 
-	jwtInfo := gohttp.JwtInfo{
-		Secret:   config.GetJwtSecretFromEnvOrPanic(),
-		Duration: config.GetJwtDurationFromEnvOrPanic(60),
-	}
-
-	// set local admin user for test
-	myAuthenticator := gohttp.NewSimpleAdminAuthenticator(
-		config.GetAdminUserFromFromEnvOrPanic("goadmin"),
-		config.GetAdminPasswordFromFromEnvOrPanic())
-	myVersionWriter := gohttp.NewSimpleVersionWriter(APP, version.VERSION, version.REVISION)
-
-	server := gohttp.NewGoHttpServer(listenAddr, myAuthenticator, myVersionWriter, l)
 	// curl -vv  -X GET  -H 'Content-Type: application/json'  http://localhost:9999/time	==>200 OK , {"time":"2024-07-15T15:30:21+02:00"}
 	server.AddRoute("GET /hello", gohttp.GetStaticPageHandler("Hello", "Hello World!", l))
 	mux := server.GetRouter()
-	mux.Handle("POST /login", gohttp.GetLoginPostHandler(server, jwtInfo))
+	myJwt := server.JwtCheck
+	mux.Handle("POST /login", gohttp.GetLoginPostHandler(server))
 	// Protected endpoint (using jwtMiddleware)
-	mux.Handle("GET /protected", gohttp.JwtMiddleware(GetProtectedHandler(server, l), jwtInfo.Secret, l))
+	mux.Handle("GET /protected", myJwt.JwtMiddleware(GetProtectedHandler(server, l)))
 
 	mux.Handle("GET /*", gohttp.NewPrometheusMiddleware(
 		server.GetPrometheusRegistry(), nil).

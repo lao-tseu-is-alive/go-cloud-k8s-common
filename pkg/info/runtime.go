@@ -21,7 +21,7 @@ type RuntimeInfo struct {
 	GOARCH              string              `json:"goarch"`                // architecture
 	Runtime             string              `json:"runtime"`               // go runtime at compilation time
 	NumGoroutine        string              `json:"num_goroutine"`         // number of go routines
-	OsReleaseName       string              `json:"os_release_name"`       // Linux release Name or _UNKNOWN_
+	OsReleaseName       string              `json:"os_release_name"`       // Linux release UserName or _UNKNOWN_
 	OsReleaseVersion    string              `json:"os_release_version"`    // Linux release Version or _UNKNOWN_
 	OsReleaseVersionId  string              `json:"os_release_version_id"` // Linux release VersionId or _UNKNOWN_
 	NumCPU              string              `json:"num_cpu"`               // number of cpu

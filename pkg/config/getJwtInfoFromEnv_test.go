@@ -117,3 +117,60 @@ func TestGetJwtSecretFromEnvOrPanic(t *testing.T) {
 		})
 	}
 }
+
+func TestGetJwtIssuerFromEnvOrPanic(t *testing.T) {
+	// Helper function to set and unset environment variables
+	setEnv := func(key, value string) {
+		oldValue, exists := os.LookupEnv(key)
+		os.Setenv(key, value)
+		t.Cleanup(func() {
+			if exists {
+				os.Setenv(key, oldValue)
+			} else {
+				os.Unsetenv(key)
+			}
+		})
+	}
+
+	// Test cases
+	tests := []struct {
+		name        string
+		envValue    string
+		expected    string
+		shouldPanic bool
+	}{
+		{"Valid issuer", "validSecretLongEnough", "validSecretLongEnough", false},
+		{"Missing env variable", "", "", true},
+		{"issuer id too short", "short", "", true},
+		{"issuer is exactly minimum length", "a2b4c6t8a2b4c6t8", "a2b4c6t8a2b4c6t8", false}, // Assuming minSecretLength is 1
+		{"issuer with not enough special characters", "!@#$'%^&*()", "!@#$'%^&*()", true},
+		{"emoticons characters should be counted as one", "✍️✌️👍👆🚀🛎👉🎁📣☀️🔥", "", true},
+		{"emoticons characters should be accepted", "🏁❗️‼️⁉️⚠️✅❎🔺🔻🔸🔹🔶🔴🔴🔵🔷🔔🔕🚩 🔅🔆✍️✌️👍👆🚀🛎👉🎁📣☀️🔥", "🏁❗️‼️⁉️⚠️✅❎🔺🔻🔸🔹🔶🔴🔴🔵🔷🔔🔕🚩 🔅🔆✍️✌️👍👆🚀🛎👉🎁📣☀️🔥", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				setEnv("JWT_ISSUER_ID", tt.envValue)
+			} else {
+				os.Unsetenv("JWT_ISSUER_ID")
+			}
+
+			if tt.shouldPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("Expected panic, but function did not panic")
+					}
+				}()
+			}
+
+			result := GetJwtIssuerFromEnvOrPanic()
+
+			if !tt.shouldPanic {
+				if result != tt.expected {
+					t.Errorf("Expected %s, but got %s", tt.expected, result)
+				}
+			}
+		})
+	}
+}
