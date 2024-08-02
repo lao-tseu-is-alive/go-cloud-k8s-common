@@ -13,7 +13,7 @@ import (
 const (
 	APP               = "goCloudK8sCommonDemoServer"
 	defaultPort       = 9999
-	defaultServerIp   = ""
+	defaultServerIp   = "0.0.0.0"
 	defaultServerPath = "/"
 	defaultWebRootDir = "front/dist/"
 	defaultAdminId    = 99999

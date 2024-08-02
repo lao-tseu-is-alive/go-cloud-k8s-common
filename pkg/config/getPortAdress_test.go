@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -56,6 +57,130 @@ func TestGetPortFromEnvOrPanic(t *testing.T) {
 
 			if !tt.shouldPanic && result != tt.expected {
 				t.Errorf("Expected %d, but got %d", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestGetListenIpFromEnvOrPanic(t *testing.T) {
+	tests := []struct {
+		name         string
+		envValue     string
+		defaultSrvIp string
+		expected     string
+		shouldPanic  bool
+	}{
+		{"Default Localhost IP", "", "127.0.0.1", "127.0.0.1", false},
+		{"Default IP", "", "0.0.0.0", "0.0.0.0", false},
+		{"Valid IP from env", "192.168.1.1", "127.0.0.1", "192.168.1.1", false},
+		{"Invalid IP", "invalid_ip", "127.0.0.1", "", true},
+		{"IPv6 address", "2001:db8::1", "127.0.0.1", "2001:db8::1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variable
+			if tt.envValue != "" {
+				os.Setenv("SRV_IP", tt.envValue)
+				defer os.Unsetenv("SRV_IP")
+			} else {
+				os.Unsetenv("SRV_IP")
+			}
+
+			if tt.shouldPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("Expected panic, but didn't get one")
+					}
+				}()
+			}
+
+			result := GetListenIpFromEnvOrPanic(tt.defaultSrvIp)
+
+			if !tt.shouldPanic {
+				if result != tt.expected {
+					t.Errorf("Expected %s, but got %s", tt.expected, result)
+				}
+			}
+		})
+	}
+}
+
+func TestGetAllowedIpsFromEnvOrPanic(t *testing.T) {
+	tests := []struct {
+		name              string
+		envValue          string
+		defaultAllowedIps []string
+		expected          []string
+		shouldPanic       bool
+	}{
+		{
+			name:              "Default IPs",
+			envValue:          "",
+			defaultAllowedIps: []string{"127.0.0.1", "192.168.1.1"},
+			expected:          []string{"127.0.0.1", "192.168.1.1"},
+			shouldPanic:       false,
+		},
+		{
+			name:              "Valid IPs from env",
+			envValue:          "10.0.0.1, 172.16.0.1",
+			defaultAllowedIps: []string{"127.0.0.1"},
+			expected:          []string{"10.0.0.1", "172.16.0.1"},
+			shouldPanic:       false,
+		},
+		{
+			name:              "Invalid IP in env",
+			envValue:          "10.0.0.1, invalid_ip",
+			defaultAllowedIps: []string{"127.0.0.1"},
+			expected:          nil,
+			shouldPanic:       true,
+		},
+		{
+			name:              "Invalid default IP",
+			envValue:          "",
+			defaultAllowedIps: []string{"invalid_ip"},
+			expected:          nil,
+			shouldPanic:       true,
+		},
+		{
+			name:              "Empty env and default",
+			envValue:          "",
+			defaultAllowedIps: []string{},
+			expected:          nil,
+			shouldPanic:       true,
+		},
+		{
+			name:              "IPv6 addresses",
+			envValue:          "2001:db8::1, 2001:db8::2",
+			defaultAllowedIps: []string{"::1"},
+			expected:          []string{"2001:db8::1", "2001:db8::2"},
+			shouldPanic:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				os.Setenv("ALLOWED_IP", tt.envValue)
+				defer os.Unsetenv("ALLOWED_IP")
+			} else {
+				os.Unsetenv("ALLOWED_IP")
+			}
+
+			if tt.shouldPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("Expected panic, but didn't get one")
+					}
+				}()
+			}
+
+			result := GetAllowedIpsFromEnvOrPanic(tt.defaultAllowedIps)
+
+			if !tt.shouldPanic {
+				if !reflect.DeepEqual(result, tt.expected) {
+					t.Errorf("Expected %v, but got %v", tt.expected, result)
+				}
 			}
 		})
 	}
