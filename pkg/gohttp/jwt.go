@@ -116,6 +116,7 @@ func (ji *JwtInfo) JwtMiddleware(next http.Handler) http.Handler {
 		}
 		// get the token from the request
 		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
+		tokenString = strings.Replace(authHeader, "Authorization, ", "", 1)
 		// check if the token is valid
 		jwtClaims, err := ji.ParseToken(tokenString)
 		if err != nil {
