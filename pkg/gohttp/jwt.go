@@ -120,7 +120,7 @@ func (ji *JwtInfo) JwtMiddleware(next http.Handler) http.Handler {
 		jwtClaims, err := ji.ParseToken(tokenString)
 		if err != nil {
 			TraceRequest("JwtMiddleware-InvalidJwtToken", r, ji.logger)
-			ji.logger.Error("Invalid token: %s", err)
+			ji.logger.Error("Invalid token err: %s\ntoken: %s", err, tokenString)
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
