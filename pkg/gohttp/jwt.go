@@ -106,9 +106,13 @@ func (ji *JwtInfo) JwtMiddleware(next http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			TraceRequest("JwtMiddleware-AuthorizationHeaderMissing", r, ji.logger)
-			ji.logger.Error("JwtMiddleware : Authorization header missing")
-			http.Error(w, "Authorization header missing", http.StatusBadRequest)
-			return
+			// ok so classic Auth header is missing, let's check if sec-websocket-protocol is present in case of websocket
+			authHeader = r.Header.Get("Sec-Websocket-Protocol")
+			if authHeader == "" {
+				ji.logger.Error("JwtMiddleware : Authorization header missing")
+				http.Error(w, "Authorization header missing", http.StatusBadRequest)
+				return
+			}
 		}
 		// get the token from the request
 		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)

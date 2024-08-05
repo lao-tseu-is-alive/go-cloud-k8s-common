@@ -244,6 +244,8 @@ func TestVerifyPasswordComplexity(t *testing.T) {
 		{"With invalid char |", "Password123|", false},
 		{"With invalid char '", "Password123'", false},
 		{"With space", "Password 123!", false},
+		{"With forbidden chars", "&nrt+\"]or_.r#''!s<Bbv", false},
+		{"With special allowed chars", "&1nrt+\"]or_.r!s<Bbv", true},
 		{"Too short but complex", "P@ss1", true},
 		{"unicode spaces should be banned ", "Aa1💥⭐ 🌀🚩", false},
 		{"all kind of emoticons characters should be accepted", "Aa1🏁❗️‼️⁉️⚠️✅❎🔺🔻🔸🔹🔶🔴🔴🔵🔷🔔🔕🚩 🔅🔆✍️✌️👍👆🚀🛎👉🎁📣☀️🔥", false},
