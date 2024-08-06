@@ -70,3 +70,30 @@ func GetAllowedIpsFromEnvOrPanic(defaultAllowedIps []string) []string {
 	}
 	panic("💥💥 ERROR: CONFIG ENV ALLOWED_IP should contain at least one valid IP.")
 }
+
+// GetAllowedHostsFromEnvOrPanic returns a list of valid TCP/IP addresses based on the values of env variable ALLOWED_IP
+//
+//	ALLOWED_HOSTS : comma separated list of valid IP addresses
+//	in case the ENV variable ALLOWED_HOSTS exists and contains invalid Host addresses the functions panics
+func GetAllowedHostsFromEnvOrPanic() []string {
+	var allowedHosts []string
+	envValue, exist := os.LookupEnv("ALLOWED_HOSTS")
+	if !exist {
+		panic("💥💥 ERROR: ENV ALLOWED_HOSTS should contain your allowed hosts.")
+	}
+	if exist {
+		allowedHosts = []string{}
+		allHosts := strings.Split(envValue, ",")
+		for _, hostName := range allHosts {
+			trimmedHost := strings.TrimSpace(hostName)
+			if trimmedHost == "" {
+				continue
+			}
+			allowedHosts = append(allowedHosts, trimmedHost)
+		}
+	}
+	if len(allowedHosts) > 0 {
+		return allowedHosts
+	}
+	panic("💥💥 ERROR: CONFIG ENV ALLOWED_HOSTS should contain at least one valid Host.")
+}

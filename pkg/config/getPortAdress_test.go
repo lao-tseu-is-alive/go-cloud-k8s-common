@@ -185,3 +185,76 @@ func TestGetAllowedIpsFromEnvOrPanic(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAllowedHostsFromEnvOrPanic(t *testing.T) {
+	tests := []struct {
+		name        string
+		envValue    string
+		expected    []string
+		shouldPanic bool
+		panicMsg    string
+	}{
+		{
+			name:     "Valid single IP",
+			envValue: "192.168.1.1",
+			expected: []string{"192.168.1.1"},
+		},
+		{
+			name:     "Valid multiple IPs",
+			envValue: "192.168.1.1, 10.0.0.1, 172.16.0.1",
+			expected: []string{"192.168.1.1", "10.0.0.1", "172.16.0.1"},
+		},
+		{
+			name:     "IPs with extra spaces and empty entries",
+			envValue: " 192.168.1.1 ,  , 10.0.0.1 , ",
+			expected: []string{"192.168.1.1", "10.0.0.1"},
+		},
+		{
+			name:        "Empty env variable",
+			envValue:    "",
+			shouldPanic: true,
+			panicMsg:    "💥💥 ERROR: ENV ALLOWED_HOSTS should contain your allowed hosts.",
+		},
+		{
+			name:        "Env variable not set",
+			shouldPanic: true,
+			panicMsg:    "💥💥 ERROR: ENV ALLOWED_HOSTS should contain your allowed hosts.",
+		},
+		{
+			name:        "Only empty entries",
+			envValue:    " , , ",
+			shouldPanic: true,
+			panicMsg:    "💥💥 ERROR: CONFIG ENV ALLOWED_HOSTS should contain at least one valid Host.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				os.Setenv("ALLOWED_HOSTS", tt.envValue)
+				defer os.Unsetenv("ALLOWED_HOSTS")
+			} else if !tt.shouldPanic {
+				os.Unsetenv("ALLOWED_HOSTS")
+			}
+
+			if tt.shouldPanic {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Errorf("GetAllowedHostsFromEnvOrPanic() should have panicked")
+					} else if r != tt.panicMsg {
+						t.Errorf("GetAllowedHostsFromEnvOrPanic() panicked with %v, want %v", r, tt.panicMsg)
+					}
+				}()
+			}
+
+			result := GetAllowedHostsFromEnvOrPanic()
+
+			if !tt.shouldPanic {
+				if !reflect.DeepEqual(result, tt.expected) {
+					t.Errorf("GetAllowedHostsFromEnvOrPanic() = %v, want %v", result, tt.expected)
+				}
+			}
+		})
+	}
+}
