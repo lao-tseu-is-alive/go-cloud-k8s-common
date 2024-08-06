@@ -71,7 +71,7 @@ func GetAllowedIpsFromEnvOrPanic(defaultAllowedIps []string) []string {
 	panic("💥💥 ERROR: CONFIG ENV ALLOWED_IP should contain at least one valid IP.")
 }
 
-// GetAllowedHostsFromEnvOrPanic returns a list of valid TCP/IP addresses based on the values of env variable ALLOWED_IP
+// GetAllowedHostsFromEnvOrPanic returns a list of valid TCP/IP addresses based on the values of env variable ALLOWED_HOSTS
 //
 //	ALLOWED_HOSTS : comma separated list of valid IP addresses
 //	in case the ENV variable ALLOWED_HOSTS exists and contains invalid Host addresses the functions panics
