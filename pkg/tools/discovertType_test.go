@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
@@ -88,14 +89,36 @@ func TestGetOpenApiType(t *testing.T) {
 			wantRes: "object",
 			wantErr: nil,
 		},
+		{name: "it should return boolean for a bool",
+			args:    args{t: false},
+			wantRes: "boolean",
+			wantErr: nil,
+		},
+		{name: "it should return array for a array",
+			args:    args{t: [2]string{"toto", "tata"}},
+			wantRes: "array",
+			wantErr: nil,
+		},
+		{name: "it should return error if unsupported type",
+			args:    args{t: make(chan int)},
+			wantRes: "chan int",
+			wantErr: errors.New(GetTypeUnHandledErrMsg),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotRes, gotErr := GetOpenApiType(tt.args.t)
 			// fmt.Printf("##GetType(%v)[%T] returns: (%v, error: %v), wants: (%v, error:%v)", tt.args.t, tt.args.t, gotRes, gotErr, tt.wantRes, tt.wantErr)
-			if gotRes != tt.wantRes || gotErr != tt.wantErr {
+			if gotRes != tt.wantRes {
 				t.Errorf("GetType(%v)[%T] got: (%v, error: %v), wants: (%v, error:%v)",
 					tt.args.t, tt.args.t, gotRes, gotErr, tt.wantRes, tt.wantErr)
+			}
+			if gotErr != nil && tt.wantErr == nil {
+				t.Errorf("GetType(%v)[%T] got: (%v, error: %v), wants: (%v, error:%v)",
+					tt.args.t, tt.args.t, gotRes, gotErr, tt.wantRes, tt.wantErr)
+			}
+			if (gotErr != nil) != (tt.wantErr != nil) {
+				t.Errorf("Expected error: %v, but got: %v", tt.wantErr, gotErr)
 			}
 		})
 	}
