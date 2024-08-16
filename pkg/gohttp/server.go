@@ -135,7 +135,6 @@ func CreateNewServerFromEnvOrFail(
 func (s *Server) routes() {
 
 	s.router.Handle("GET /time", GetTimeHandler(s.logger))
-	s.router.Handle("GET /info", GetInfoHandler(s))
 	s.router.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
 		TraceRequest("GetVersionHandler", r, s.logger)
 		err := s.JsonResponse(w, s.VersionReader.GetVersionInfo())

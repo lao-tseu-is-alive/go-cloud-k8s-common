@@ -76,8 +76,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 	}
-	l.Info("🚀🚀 Starting App %s version:%s from %s", APP, version.VERSION, version.REPOSITORY)
-	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REVISION)
+	l.Info("🚀🚀 Starting App:'%s', ver:%s, build:%s, from: %s", APP, version.VERSION, version.Build, version.REPOSITORY)
+	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REVISION, version.Build)
 	server := gohttp.CreateNewServerFromEnvOrFail(
 		defaultPort,
 		defaultServerIp,
@@ -89,6 +89,7 @@ func main() {
 
 	// curl -vv  -X GET  -H 'Content-Type: application/json'  http://localhost:9999/time	==>200 OK , {"time":"2024-07-15T15:30:21+02:00"}
 	server.AddRoute("GET /hello", gohttp.GetStaticPageHandler("Hello", "Hello World!", l))
+	server.AddRoute("GET /info", gohttp.GetInfoHandler(server))
 	mux := server.GetRouter()
 	myJwt := server.JwtCheck
 	mux.Handle("POST /login", gohttp.GetLoginPostHandler(server))

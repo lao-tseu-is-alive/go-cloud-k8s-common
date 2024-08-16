@@ -46,7 +46,7 @@ type TestMainStruct struct {
 
 func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 	var nameParameter string
-	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REVISION)
+	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REVISION, version.Build)
 	myServer := gohttp.CreateNewServerFromEnvOrFail(
 		defaultPort,
 		defaultServerIp,
