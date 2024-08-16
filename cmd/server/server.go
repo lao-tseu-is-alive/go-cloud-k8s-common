@@ -77,7 +77,7 @@ func main() {
 		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 	}
 	l.Info("🚀🚀 Starting App:'%s', ver:%s, build:%s, from: %s", APP, version.VERSION, version.Build, version.REPOSITORY)
-	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REVISION, version.Build)
+	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REPOSITORY, version.Build)
 	server := gohttp.CreateNewServerFromEnvOrFail(
 		defaultPort,
 		defaultServerIp,
