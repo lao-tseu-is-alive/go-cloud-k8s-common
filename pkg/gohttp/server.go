@@ -101,30 +101,14 @@ func NewGoHttpServer(listenAddress string, Auth Authentication, JwtCheck JwtChec
 func CreateNewServerFromEnvOrFail(
 	defaultPort int,
 	defaultServerIp string,
-	defaultAdminUser string,
-	defaultAdminEmail string,
-	defaultAdminId int,
+	myAuthenticator Authentication,
+	myJwt JwtChecker,
 	myVersionReader VersionReader,
 	l golog.MyLogger,
 ) *Server {
 	listenPort := config.GetPortFromEnvOrPanic(defaultPort)
 	listenAddr := fmt.Sprintf("%s:%d", defaultServerIp, listenPort)
 	l.Info("HTTP server will listen : %s", listenAddr)
-
-	// Create a new JWT checker
-	myJwt := NewJwtChecker(
-		config.GetJwtSecretFromEnvOrPanic(),
-		config.GetJwtIssuerFromEnvOrPanic(),
-		config.GetJwtDurationFromEnvOrPanic(60),
-		l)
-
-	// Create a new Authenticator with a simple admin user
-	myAuthenticator := NewSimpleAdminAuthenticator(
-		config.GetAdminUserFromFromEnvOrPanic(defaultAdminUser),
-		config.GetAdminPasswordFromFromEnvOrPanic(),
-		config.GetAdminEmailFromFromEnvOrPanic(defaultAdminEmail),
-		config.GetAdminIdFromFromEnvOrPanic(defaultAdminId),
-		myJwt)
 
 	server := NewGoHttpServer(listenAddr, myAuthenticator, myJwt, myVersionReader, l)
 	return server

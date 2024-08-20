@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
@@ -47,12 +48,24 @@ type TestMainStruct struct {
 func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 	var nameParameter string
 	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REVISION, version.Build)
+	// Create a new JWT checker
+	myJwt := gohttp.NewJwtChecker(
+		config.GetJwtSecretFromEnvOrPanic(),
+		config.GetJwtIssuerFromEnvOrPanic(),
+		config.GetJwtDurationFromEnvOrPanic(60),
+		l)
+	// Create a new Authenticator with a simple admin user
+	myAuthenticator := gohttp.NewSimpleAdminAuthenticator(
+		config.GetAdminUserFromFromEnvOrPanic(defaultAdminUser),
+		config.GetAdminPasswordFromFromEnvOrPanic(),
+		config.GetAdminEmailFromFromEnvOrPanic(defaultAdminEmail),
+		config.GetAdminIdFromFromEnvOrPanic(defaultAdminId),
+		myJwt)
 	myServer := gohttp.CreateNewServerFromEnvOrFail(
 		defaultPort,
 		defaultServerIp,
-		defaultAdminUser,
-		defaultAdminEmail,
-		defaultAdminId,
+		myAuthenticator,
+		myJwt,
 		myVersionReader,
 		l)
 

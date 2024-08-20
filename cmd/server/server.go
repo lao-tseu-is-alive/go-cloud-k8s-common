@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
@@ -78,12 +79,24 @@ func main() {
 	}
 	l.Info("🚀🚀 Starting App:'%s', ver:%s, build:%s, from: %s", APP, version.VERSION, version.Build, version.REPOSITORY)
 	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REPOSITORY, version.Build)
+	// Create a new JWT checker
+	myJwt := gohttp.NewJwtChecker(
+		config.GetJwtSecretFromEnvOrPanic(),
+		config.GetJwtIssuerFromEnvOrPanic(),
+		config.GetJwtDurationFromEnvOrPanic(60),
+		l)
+	// Create a new Authenticator with a simple admin user
+	myAuthenticator := gohttp.NewSimpleAdminAuthenticator(
+		config.GetAdminUserFromFromEnvOrPanic(defaultAdminUser),
+		config.GetAdminPasswordFromFromEnvOrPanic(),
+		config.GetAdminEmailFromFromEnvOrPanic(defaultAdminEmail),
+		config.GetAdminIdFromFromEnvOrPanic(defaultAdminId),
+		myJwt)
 	server := gohttp.CreateNewServerFromEnvOrFail(
 		defaultPort,
 		defaultServerIp,
-		defaultAdminUser,
-		defaultAdminEmail,
-		defaultAdminId,
+		myAuthenticator,
+		myJwt,
 		myVersionReader,
 		l)
 
@@ -91,7 +104,6 @@ func main() {
 	server.AddRoute("GET /hello", gohttp.GetStaticPageHandler("Hello", "Hello World!", l))
 	server.AddRoute("GET /info", gohttp.GetInfoHandler(server))
 	mux := server.GetRouter()
-	myJwt := server.JwtCheck
 	mux.Handle("POST /login", gohttp.GetLoginPostHandler(server))
 	// Protected endpoint (using jwtMiddleware)
 	mux.Handle("GET /protected", myJwt.JwtMiddleware(GetProtectedHandler(server, l)))
