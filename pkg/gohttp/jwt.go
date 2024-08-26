@@ -46,6 +46,7 @@ type JwtInfo struct {
 	Secret   string `json:"secret"`
 	Duration int    `json:"duration"`
 	IssuerId string `json:"issuer_id"`
+	Subject  string `json:"subject"`
 	logger   golog.MyLogger
 }
 
@@ -153,7 +154,7 @@ func (ji *JwtInfo) GetTokenFromUserInfo(userInfo *UserInfo) (*jwt.Token, error) 
 			ID:        guid.String(), // this is the JWT TOKEN ID
 			Audience:  nil,
 			Issuer:    ji.GetIssuerId(), // this is the JWT TOKEN ISSUER
-			Subject:   fmt.Sprintf("{\"authenticator\":\"SimpleAdminAuthenticator\", \"login\":\"%s\"}", userInfo.UserLogin),
+			Subject:   "",
 			ExpiresAt: &jwt.NumericDate{Time: time.Now().Add(time.Minute * time.Duration(ji.GetJwtDuration()))},
 			IssuedAt:  &jwt.NumericDate{Time: time.Now()},
 			NotBefore: &jwt.NumericDate{Time: time.Now()},
@@ -180,11 +181,12 @@ func GetJwtCustomClaimsFromContext(r *http.Request) *JwtCustomClaims {
 }
 
 // NewJwtChecker creates a new JwtChecker
-func NewJwtChecker(secret, issuer string, duration int, l golog.MyLogger) JwtChecker {
+func NewJwtChecker(secret, issuer, subject string, duration int, l golog.MyLogger) JwtChecker {
 	return &JwtInfo{
 		Secret:   secret,
 		Duration: duration,
 		IssuerId: issuer,
+		Subject:  subject,
 		logger:   l,
 	}
 }

@@ -7,7 +7,7 @@ import (
 
 type Authentication interface {
 	AuthenticateUser(user, passwordHash string) bool
-	GetUserInfoFromLogin(login string) *UserInfo
+	GetUserInfoFromLogin(login string) (*UserInfo, error)
 }
 
 // SimpleAdminAuthenticator Create a struct that will implement the Authentication interface
@@ -30,7 +30,7 @@ func (sa *SimpleAdminAuthenticator) AuthenticateUser(userLogin, passwordHash str
 }
 
 // GetUserInfoFromLogin Get the JWT claims from the login User
-func (sa *SimpleAdminAuthenticator) GetUserInfoFromLogin(login string) *UserInfo {
+func (sa *SimpleAdminAuthenticator) GetUserInfoFromLogin(login string) (*UserInfo, error) {
 	user := &UserInfo{
 		UserId:    sa.mainAdminId,
 		UserName:  fmt.Sprintf("SimpleAdminAuthenticator_%s", sa.mainAdminUserLogin),
@@ -38,7 +38,7 @@ func (sa *SimpleAdminAuthenticator) GetUserInfoFromLogin(login string) *UserInfo
 		UserLogin: login,
 		IsAdmin:   true,
 	}
-	return user
+	return user, nil
 }
 
 // NewSimpleAdminAuthenticator Function to create an instance of SimpleAdminAuthenticator

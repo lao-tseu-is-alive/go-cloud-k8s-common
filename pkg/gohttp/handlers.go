@@ -144,7 +144,12 @@ func GetLoginPostHandler(s *Server) http.HandlerFunc {
 		}
 
 		if s.Authenticator.AuthenticateUser(login, passwordHash) {
-			userInfo := s.Authenticator.GetUserInfoFromLogin(login)
+			userInfo, err := s.Authenticator.GetUserInfoFromLogin(login)
+			if err != nil {
+				s.logger.Error("Error getting user info from login: %v", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
 			s.logger.Info(fmt.Sprintf("LoginUser(%s) succesfull login for User id (%d)", userInfo.UserLogin, userInfo.UserId))
 			token, err := s.JwtCheck.GetTokenFromUserInfo(userInfo)
 			if err != nil {
