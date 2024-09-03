@@ -336,7 +336,7 @@ func executeTest(t *testing.T, tt TestMainStruct, listenAddr string, l golog.MyL
 }
 
 func TestMainExecution(t *testing.T) {
-	defaultPort := 9999
+	defaultPort := 9898
 	listenAddr := fmt.Sprintf("%s://%s:%d", "http", "127.0.0.1", defaultPort)
 	setPortEnv(t, defaultPort)
 	fmt.Printf("INFO: 'Will start HTTP server listening on port %s'\n", listenAddr)
