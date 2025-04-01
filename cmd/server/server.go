@@ -109,7 +109,7 @@ func main() {
 	// Protected endpoint (using jwtMiddleware)
 	mux.Handle("GET /protected", myJwt.JwtMiddleware(GetProtectedHandler(server, l)))
 
-	mux.Handle("GET /*", gohttp.NewPrometheusMiddleware(
+	mux.Handle("GET /", gohttp.NewPrometheusMiddleware(
 		server.GetPrometheusRegistry(), nil).
 		WrapHandler("GET /*", GetMyDefaultHandler(server, defaultWebRootDir, content)),
 	)
