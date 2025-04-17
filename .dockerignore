@@ -1,3 +1,7 @@
 .git
 *.md
 test/
+.vscode
+Dockerfile
+.env
+.github

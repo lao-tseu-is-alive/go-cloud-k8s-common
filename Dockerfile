@@ -1,10 +1,6 @@
 # Start from the latest golang base image
 FROM golang:1.24.2-alpine3.21 AS builder
 
-ENV PATH /usr/local/go/bin:$PATH
-ENV GOLANG_VERSION 1.24.2
-
-
 # Add Maintainer Info
 LABEL maintainer="cgil"
 LABEL org.opencontainers.image.title="go-cloud-k8s-common"
@@ -12,6 +8,8 @@ LABEL org.opencontainers.image.description="This is a go-cloud-k8s-common contai
 LABEL org.opencontainers.image.url="https://ghcr.io/lao-tseu-is-alive/go-cloud-k8s-common:latest"
 LABEL org.opencontainers.image.authors="cgil"
 LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.source="https://github.com/lao-tseu-is-alive/go-cloud-k8s-common"
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
