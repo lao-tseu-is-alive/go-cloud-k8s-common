@@ -1,8 +1,8 @@
 # Start from the latest golang base image
-FROM golang:1.22.5-alpine3.20 AS builder
+FROM golang:1.24.2-alpine3.21 AS builder
 
 ENV PATH /usr/local/go/bin:$PATH
-ENV GOLANG_VERSION 1.22.5
+ENV GOLANG_VERSION 1.24.2
 
 
 # Add Maintainer Info
@@ -23,12 +23,12 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the source from the current directory to the Working Directory inside the container
-COPY cmd/server ./server
+COPY "cmd/server" ./server
 COPY pkg ./pkg
 
 
 # Build the Go app
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o go-common-server ./server
+RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags="-w -s" -o go-common-server ./server
 
 
 ######## Start a new stage  #######
