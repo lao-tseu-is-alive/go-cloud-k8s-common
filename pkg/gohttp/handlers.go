@@ -75,14 +75,28 @@ func GetStaticPageHandler(title string, description string, l golog.MyLogger) ht
 func GetTimeHandler(l golog.MyLogger) http.HandlerFunc {
 	handlerName := "GetTimeHandler"
 	l.Debug(initCallMsg, handlerName)
+
+	type TimeResponse struct {
+		Time string `json:"time"`
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		TraceRequest(handlerName, r, l)
-		now := time.Now()
+
+		// Create response with current time
+		response := TimeResponse{
+			Time: time.Now().Format(time.RFC3339),
+		}
+
+		// Set response headers
 		w.Header().Set(HeaderContentType, MIMEAppJSONCharsetUTF8)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.WriteHeader(http.StatusOK)
-		_, err := fmt.Fprintf(w, "{\"time\":\"%s\"}", now.Format(time.RFC3339))
-		if err != nil {
-			l.Error("Error doing fmt.Fprintf err: %s", err)
+
+		// Encode and send response
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			l.Error("Error encoding time response: %v", err)
+			// Can't write an error response at this point as headers are already sent
 		}
 	}
 }
@@ -134,36 +148,56 @@ func GetLoginPostHandler(s *Server) http.HandlerFunc {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		login := r.FormValue("login")
-		// password := r.FormValue("pass")
+
+		// Get login and password hash from the form
+		login := strings.TrimSpace(r.FormValue("login"))
 		passwordHash := r.FormValue("hashed")
-		s.logger.Debug("login: %s , password: %s, hash: %s ", login, passwordHash)
-		// maybe it was not a form but a fetch data post
-		if len(strings.Trim(login, " ")) < 1 {
+
+		// Validate login
+		if login == "" {
+			logger.Warn("Login attempt with empty username from IP: %s", r.RemoteAddr)
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
 		}
 
+		// Log login attempt without exposing sensitive data
+		logger.Debug("Login attempt for user: %s from IP: %s", login, r.RemoteAddr)
+
+		// Authenticate user
 		if s.Authenticator.AuthenticateUser(login, passwordHash) {
 			userInfo, err := s.Authenticator.GetUserInfoFromLogin(login)
 			if err != nil {
-				s.logger.Error("Error getting user info from login: %v", err)
+				logger.Error("Error getting user info for login '%s': %v", login, err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
-			s.logger.Info(fmt.Sprintf("LoginUser(%s) succesfull login for User id (%d)", userInfo.UserLogin, userInfo.UserId))
+
+			// Generate JWT token
 			token, err := s.JwtCheck.GetTokenFromUserInfo(userInfo)
 			if err != nil {
+				logger.Error("Error generating token for user '%s': %v", login, err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
-			// Prepare the response
+
+			// Log successful login
+			logger.Info("Successful login for user '%s' (ID: %d)", userInfo.UserLogin, userInfo.UserId)
+
+			// Prepare and send response
 			response := map[string]string{
 				"token": token.String(),
 			}
-			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set(HeaderContentType, MIMEAppJSONCharsetUTF8)
+			w.Header().Set("X-Content-Type-Options", "nosniff")
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(response)
+
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				logger.Error("Error encoding JSON response: %v", err)
+				// Can't write error response at this point as headers are already sent
+			}
 		} else {
+			// Log failed login attempt
+			logger.Warn("Failed login attempt for user '%s' from IP: %s", login, r.RemoteAddr)
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		}
 	}

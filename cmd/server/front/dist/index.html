@@ -76,7 +76,7 @@
             }
             console.log(jsonResponse);
             tokenEl.innerHTML = `export TOKEN="${token}"
-            curl -v  -H "Authorization: Bearer \${TOKEN}" http://localhost:9999/protected
+            curl -v  -H "Authorization: Bearer \${TOKEN}" http://localhost:9898/protected
             `;
             msg.innerHTML = `response from server<pre>${niceToReadResponse}</pre>`;
         } else {

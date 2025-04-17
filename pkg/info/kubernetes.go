@@ -189,27 +189,30 @@ func GetK8SLatestVersion(logger golog.MyLogger) (string, error) {
 		logger.Error("Error on http.NewRequest [ERROR: %v]\n", err)
 		return "", err
 	}
-	caCert, err := os.ReadFile(caCertPath)
-	if err != nil {
-		logger.Error("Error on ReadFile(caCertPath) [ERROR: %v]\n", err)
-		return "", err
-	}
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			RootCAs: caCertPool,
-		},
-	}
+	/*
+		caCert, err := os.ReadFile(caCertPath)
+		if err != nil {
+			logger.Error("Error on ReadFile(caCertPath) [ERROR: %v]\n", err)
+			return "", err
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: caCertPool,
+			},
+		}
 
-	//tr := &http.Transport{ TLSClientConfig: &tls.Config{InsecureSkipVerify: true} }
+		//tr := &http.Transport{ TLSClientConfig: &tls.Config{InsecureSkipVerify: true} }
 
-	// add authorization header to the req
-	// req.Header.Add("Authorization", bearer)
+		// add authorization header to the req
+		// req.Header.Add("Authorization", bearer)
+
+	*/
 	// Send req using http Client
 	client := &http.Client{
-		Timeout:   defaultReadTimeout,
-		Transport: tr,
+		Timeout: defaultReadTimeout,
+		//Transport: tr,
 	}
 
 	resp, err := client.Do(req)

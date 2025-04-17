@@ -16,7 +16,7 @@ const (
 	defaultPort       = 9999
 	defaultServerIp   = "0.0.0.0"
 	defaultServerPath = "/"
-	defaultWebRootDir = "front/dist/"
+	defaultWebRootDir = "front/dist"
 	defaultAdminId    = 99999
 	defaultAdminUser  = "goadmin"
 	defaultAdminEmail = "goadmin@lausanne.ch"
@@ -32,10 +32,18 @@ func GetMyDefaultHandler(s *gohttp.Server, webRootDir string, content embed.FS) 
 	logger := s.GetLog()
 	logger.Debug("Initial call to %s with webRootDir:%s", handlerName, webRootDir)
 	RootPathGetCounter := s.RootPathGetCounter
+
 	// Create a subfolder filesystem to serve only the content of front/dist
-	subFS, err := fs.Sub(content, "front/dist")
+	subFS, err := fs.Sub(content, webRootDir)
 	if err != nil {
-		logger.Fatal("Error creating sub-filesystem: %v", err)
+		// Log error but don't terminate the program
+		logger.Error("Error creating fs.Sub for content in %s: %v", webRootDir, err)
+		// Return a handler that serves an error message
+		return func(w http.ResponseWriter, r *http.Request) {
+			gohttp.TraceRequest(handlerName, r, logger)
+			RootPathGetCounter.Inc()
+			http.Error(w, "Internal Server Error: Could not initialize file system", http.StatusInternalServerError)
+		}
 	}
 
 	// Create a file server handler for the embed filesystem
@@ -56,7 +64,7 @@ func GetProtectedHandler(server *gohttp.Server, l golog.MyLogger) http.HandlerFu
 		claims := gohttp.GetJwtCustomClaimsFromContext(r)
 
 		currentUserId := claims.User.UserId
-		// check if user is admin
+		// check if the user is admin
 		if !claims.User.IsAdmin {
 			l.Error("User %d is not admin: %+v", currentUserId, claims)
 			http.Error(w, "User is not admin", http.StatusForbidden)
@@ -65,6 +73,7 @@ func GetProtectedHandler(server *gohttp.Server, l golog.MyLogger) http.HandlerFu
 		// respond with protected data
 		err := server.JsonResponse(w, claims)
 		if err != nil {
+			l.Error("error writing json response to client : %v", err)
 			http.Error(w, "Error responding with protected data", http.StatusInternalServerError)
 			return
 		}
@@ -72,8 +81,8 @@ func GetProtectedHandler(server *gohttp.Server, l golog.MyLogger) http.HandlerFu
 }
 
 func main() {
-
-	l, err := golog.NewLogger("zap", golog.DebugLevel, APP)
+	// Use a more appropriate logger type since "zap" is not implemented
+	l, err := golog.NewLogger("simple", golog.DebugLevel, APP)
 	if err != nil {
 		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 	}

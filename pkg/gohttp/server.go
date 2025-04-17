@@ -1,7 +1,6 @@
 package gohttp
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -183,26 +182,31 @@ func (s *Server) StartServer() {
 
 }
 
+// JsonResponse writes a JSON response with the given status code
 func (s *Server) JsonResponse(w http.ResponseWriter, result interface{}) error {
-	body, err := json.Marshal(result)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		s.logger.Error("JSON marshal failed. Error: %v", err)
-		return err
-	}
-	var prettyOutput bytes.Buffer
-	err = json.Indent(&prettyOutput, body, "", "  ")
-	if err != nil {
-		s.logger.Error("JSON Indent failed. Error: %v", err)
-		return err
-	}
+	return s.JsonResponseWithStatus(w, result, http.StatusOK)
+}
+
+// JsonResponseWithStatus writes a JSON response with the given status code
+func (s *Server) JsonResponseWithStatus(w http.ResponseWriter, result interface{}, statusCode int) error {
+	// Set headers before any potential error occurs
 	w.Header().Set(HeaderContentType, MIMEAppJSONCharsetUTF8)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(prettyOutput.Bytes())
+
+	// Marshal the response
+	body, err := json.Marshal(result)
+	if err != nil {
+		s.logger.Error("JSON marshal failed. Error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return err
+	}
+
+	// Set status code and write response
+	w.WriteHeader(statusCode)
+	_, err = w.Write(body)
 	if err != nil {
 		s.logger.Error("w.Write failed. Error: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		// Can't write to response at this point as headers are already sent
 		return err
 	}
 	return nil
@@ -233,25 +237,49 @@ func WaitForHttpServer(listenAddress string, waitDuration time.Duration, numRetr
 
 // waitForShutdownToExit will wait for interrupt signal SIGINT or SIGTERM and gracefully shutdown the server after secondsToWait seconds.
 func waitForShutdownToExit(srv *http.Server, secondsToWait time.Duration) {
+	// Create a channel to receive OS signals
 	interruptChan := make(chan os.Signal, 1)
+
+	// Register for SIGINT and SIGTERM signals
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	// Block until a signal is received.
-	// wait for SIGINT (interrupt) 	: ctrl + C keypress, or in a shell : kill -SIGINT processId
-	sig := <-interruptChan
-	srv.ErrorLog.Printf("INFO: 'SIGINT %d interrupt signal received, about to shut down server after max %v seconds...'\n", sig, secondsToWait.Seconds())
+	// Create a channel to signal when shutdown is complete
+	shutdownComplete := make(chan struct{})
 
-	// create a deadline to wait for.
-	ctx, cancel := context.WithTimeout(context.Background(), secondsToWait)
-	defer cancel()
-	// gracefully shuts down the server without interrupting any active connections
-	// as long as the actives connections last less than shutDownTimeout
-	// https://pkg.go.dev/net/http#Server.Shutdown
-	if err := srv.Shutdown(ctx); err != nil {
-		srv.ErrorLog.Printf("💥💥 ERROR: 'Problem doing Shutdown %v'\n", err)
-	}
-	<-ctx.Done()
-	srv.ErrorLog.Println("INFO: 'Server gracefully stopped, will exit'")
+	// Start a goroutine to handle shutdown
+	go func() {
+		// Block until a signal is received
+		sig := <-interruptChan
+		srv.ErrorLog.Printf("INFO: Signal %v received, initiating graceful shutdown (timeout: %v seconds)...\n",
+			sig, secondsToWait.Seconds())
+
+		// Create a context with timeout for the shutdown
+		ctx, cancel := context.WithTimeout(context.Background(), secondsToWait)
+		defer cancel()
+
+		// Attempt graceful shutdown
+		// This stops accepting new connections and waits for existing connections to complete
+		if err := srv.Shutdown(ctx); err != nil {
+			srv.ErrorLog.Printf("ERROR: Problem during shutdown: %v\n", err)
+		}
+
+		// Wait for context to be done (either timeout or cancel)
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				srv.ErrorLog.Println("WARNING: Shutdown timed out, some connections may have been terminated")
+			} else {
+				srv.ErrorLog.Println("INFO: Shutdown completed successfully")
+			}
+		}
+
+		// Signal that shutdown is complete
+		close(shutdownComplete)
+	}()
+
+	// Wait for shutdown to complete
+	<-shutdownComplete
+	srv.ErrorLog.Println("INFO: Server gracefully stopped, exiting")
 	os.Exit(0)
 }
 
