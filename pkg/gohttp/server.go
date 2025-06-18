@@ -164,6 +164,11 @@ func (s *Server) GetStartTime() time.Time {
 	return s.startTime
 }
 
+// GetJwtChecker returns the jwt checker of this web server
+func (s *Server) GetJwtChecker() JwtChecker {
+	return s.JwtCheck
+}
+
 // StartServer initializes all the handlers paths of this web server, it is called inside the NewGoHttpServer constructor
 func (s *Server) StartServer() {
 
@@ -266,7 +271,7 @@ func waitForShutdownToExit(srv *http.Server, secondsToWait time.Duration) {
 		// Wait for context to be done (either timeout or cancel)
 		select {
 		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				srv.ErrorLog.Println("WARNING: Shutdown timed out, some connections may have been terminated")
 			} else {
 				srv.ErrorLog.Println("INFO: Shutdown completed successfully")

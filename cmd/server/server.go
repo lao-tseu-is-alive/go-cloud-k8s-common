@@ -61,7 +61,7 @@ func GetProtectedHandler(server *gohttp.Server, l golog.MyLogger) http.HandlerFu
 	return func(w http.ResponseWriter, r *http.Request) {
 		gohttp.TraceRequest(handlerName, r, l)
 		// get the user from the context
-		claims := gohttp.GetJwtCustomClaimsFromContext(r)
+		claims := server.GetJwtChecker().GetJwtCustomClaimsFromContext(r.Context())
 
 		currentUserId := claims.User.UserId
 		// check if the user is admin
@@ -86,13 +86,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 	}
-	l.Info("🚀🚀 Starting App:'%s', ver:%s, build:%s, from: %s", APP, version.VERSION, version.Build, version.REPOSITORY)
-	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REPOSITORY, version.Build)
+	l.Info("🚀🚀 Starting App:'%s', ver:%s, build:%s, from: %s", APP, version.VERSION, version.BuildStamp, version.REPOSITORY)
+	// Get the ENV JWT_AUTH_URL value
+	jwtAuthUrl := config.GetJwtAuthUrlFromEnvOrPanic()
+	myVersionReader := gohttp.NewSimpleVersionReader(
+		APP, version.VERSION, version.REPOSITORY, version.REVISION, version.BuildStamp, jwtAuthUrl)
 	// Create a new JWT checker
 	myJwt := gohttp.NewJwtChecker(
 		config.GetJwtSecretFromEnvOrPanic(),
 		config.GetJwtIssuerFromEnvOrPanic(),
 		APP,
+		config.GetJwtContextKeyFromEnvOrPanic(),
 		config.GetJwtDurationFromEnvOrPanic(60),
 		l)
 	// Create a new Authenticator with a simple admin user
@@ -113,6 +117,8 @@ func main() {
 	// curl -vv  -X GET  -H 'Content-Type: application/json'  http://localhost:9999/time	==>200 OK , {"time":"2024-07-15T15:30:21+02:00"}
 	server.AddRoute("GET /hello", gohttp.GetStaticPageHandler("Hello", "Hello World!", l))
 	server.AddRoute("GET /info", gohttp.GetInfoHandler(server))
+	server.AddRoute("GET /goAppInfo", gohttp.GetAppInfoHandler(server))
+
 	mux := server.GetRouter()
 	mux.Handle("POST /login", gohttp.GetLoginPostHandler(server))
 	// Protected endpoint (using jwtMiddleware)

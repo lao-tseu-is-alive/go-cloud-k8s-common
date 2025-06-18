@@ -202,3 +202,18 @@ func GetLoginPostHandler(s *Server) http.HandlerFunc {
 		}
 	}
 }
+
+func GetAppInfoHandler(s *Server) http.HandlerFunc {
+	handlerName := "GetAppInfoHandler"
+	s.logger.Debug(initCallMsg, handlerName)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		TraceRequest(handlerName, r, s.logger)
+		appInfo := s.VersionReader.GetVersionInfo()
+		err := s.JsonResponseWithStatus(w, appInfo, http.StatusOK)
+		if err != nil {
+			s.logger.Error("Error doing JsonResponse'%s': %v", handlerName, err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+	}
+}

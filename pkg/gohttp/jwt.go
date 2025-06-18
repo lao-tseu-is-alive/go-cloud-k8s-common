@@ -20,6 +20,7 @@ type JwtChecker interface {
 	GetLogger() golog.MyLogger
 	GetJwtDuration() int
 	GetIssuerId() string
+	GetJwtCustomClaimsFromContext(c context.Context) *JwtCustomClaims
 }
 
 // Context key for storing the JWT token
@@ -43,11 +44,12 @@ type JwtCustomClaims struct {
 }
 
 type JwtInfo struct {
-	Secret   string `json:"secret"`
-	Duration int    `json:"duration"`
-	IssuerId string `json:"issuer_id"`
-	Subject  string `json:"subject"`
-	logger   golog.MyLogger
+	Secret        string `json:"secret"`
+	Duration      int    `json:"duration"`
+	IssuerId      string `json:"issuer_id"`
+	Subject       string `json:"subject"`
+	JwtContextKey string `json:"jwt_context_key"` // Context key for storing the JWT token
+	logger        golog.MyLogger
 }
 
 func (ji *JwtInfo) ParseToken(jwtToken string) (*JwtCustomClaims, error) {
@@ -129,7 +131,8 @@ func (ji *JwtInfo) JwtMiddleware(next http.Handler) http.Handler {
 		// Token is valid, proceed to the next handler
 		// Store the valid JWT token in the request context
 		ji.logger.Debug(fmt.Sprintf("JwtMiddleware : user: %s got valid Token %s", jwtClaims.User.UserLogin, jwtClaims.ID))
-		ctx := context.WithValue(r.Context(), jwtTokenKey, jwtClaims)
+		// Store the valid JWT token in the echo context
+		ctx := context.WithValue(r.Context(), ji.JwtContextKey, jwtClaims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 
@@ -172,21 +175,22 @@ func (ji *JwtInfo) GetTokenFromUserInfo(userInfo *UserInfo) (*jwt.Token, error) 
 }
 
 // GetJwtCustomClaimsFromContext returns the JWT Custom claims from the received  request with context
-func GetJwtCustomClaimsFromContext(r *http.Request) *JwtCustomClaims {
+func (ji *JwtInfo) GetJwtCustomClaimsFromContext(c context.Context) *JwtCustomClaims {
 	// Retrieve the JWT Claims from the request context
-	jwtClaims := r.Context().Value(jwtTokenKey).(*JwtCustomClaims)
+	jwtClaims := c.Value(jwtTokenKey).(*JwtCustomClaims)
 	//claims := JwtCustomClaims{}
 	//err := token.DecodeClaims(&claims)
 	return jwtClaims
 }
 
 // NewJwtChecker creates a new JwtChecker
-func NewJwtChecker(secret, issuer, subject string, duration int, l golog.MyLogger) JwtChecker {
+func NewJwtChecker(secret, issuer, subject, contextKey string, duration int, l golog.MyLogger) JwtChecker {
 	return &JwtInfo{
-		Secret:   secret,
-		Duration: duration,
-		IssuerId: issuer,
-		Subject:  subject,
-		logger:   l,
+		Secret:        secret,
+		Duration:      duration,
+		IssuerId:      issuer,
+		Subject:       subject,
+		JwtContextKey: contextKey,
+		logger:        l,
 	}
 }
