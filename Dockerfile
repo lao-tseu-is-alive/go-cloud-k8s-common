@@ -4,7 +4,7 @@ FROM golang:1.24.4-alpine3.22 AS builder
 # Define build arguments for version and build timestamp
 ARG APP_REVISION
 ARG BUILD
-ARG APP_REPOSITORY=https://github.com/lao-tseu-is-alive/go-cloud-k8s-shell
+ARG APP_REPOSITORY=https://github.com/lao-tseu-is-alive/go-cloud-k8s-common
 
 # Add Maintainer Info
 LABEL maintainer="cgil"
@@ -32,7 +32,7 @@ COPY pkg ./pkg
 
 # Clean the APP_REPOSITORY for ldflags
 RUN APP_REPOSITORY_CLEAN=$(echo $APP_REPOSITORY | sed 's|https://||') && \
-    CGO_ENABLED=0 GOOS=linux go build -a -ldflags="-w -s -X ${APP_REPOSITORY_CLEAN}/pkg/version.REVISION=${APP_REVISION} -X ${APP_REPOSITORY_CLEAN}/pkg/version.BuildStamp=${BUILD}" -o go-shell-server ./server
+    CGO_ENABLED=0 GOOS=linux go build -a -ldflags="-w -s -X ${APP_REPOSITORY_CLEAN}/pkg/version.REVISION=${APP_REVISION} -X ${APP_REPOSITORY_CLEAN}/pkg/version.BuildStamp=${BUILD}" -o go-common-server ./server
 
 
 ######## Start a new stage  #######

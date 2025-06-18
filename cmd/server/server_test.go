@@ -47,12 +47,15 @@ type TestMainStruct struct {
 
 func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 	var nameParameter string
-	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REVISION, version.Build)
+	// Get the ENV JWT_AUTH_URL value
+	jwtAuthUrl := config.GetJwtAuthUrlFromEnvOrPanic()
+	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REPOSITORY, version.REVISION, version.BuildStamp, jwtAuthUrl)
 	// Create a new JWT checker
 	myJwt := gohttp.NewJwtChecker(
 		config.GetJwtSecretFromEnvOrPanic(),
 		config.GetJwtIssuerFromEnvOrPanic(),
 		APP,
+		config.GetJwtContextKeyFromEnvOrPanic(),
 		config.GetJwtDurationFromEnvOrPanic(60),
 		l)
 	// Create a new Authenticator with a simple admin user

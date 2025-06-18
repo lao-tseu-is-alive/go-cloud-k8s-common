@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
@@ -56,11 +57,14 @@ func GetMyDefaultHandler(s *gohttp.Server, webRootDir string, content embed.FS) 
 	}
 }
 
-func GetProtectedHandler(server *gohttp.Server, l golog.MyLogger) http.HandlerFunc {
+func GetProtectedHandler(server *gohttp.Server, jwtContextKey string, l golog.MyLogger) http.HandlerFunc {
 	handlerName := "GetProtectedHandler"
 	return func(w http.ResponseWriter, r *http.Request) {
 		gohttp.TraceRequest(handlerName, r, l)
 		// get the user from the context
+
+		l.Debug("Get protected data from context %s :%v", jwtContextKey, r.Context().Value(jwtContextKey))
+		// get the user from the context ( the user is already in the context thanks to the jwtMiddleware)
 		claims := server.GetJwtChecker().GetJwtCustomClaimsFromContext(r.Context())
 
 		currentUserId := claims.User.UserId
@@ -89,14 +93,14 @@ func main() {
 	l.Info("🚀🚀 Starting App:'%s', ver:%s, build:%s, from: %s", APP, version.VERSION, version.BuildStamp, version.REPOSITORY)
 	// Get the ENV JWT_AUTH_URL value
 	jwtAuthUrl := config.GetJwtAuthUrlFromEnvOrPanic()
-	myVersionReader := gohttp.NewSimpleVersionReader(
-		APP, version.VERSION, version.REPOSITORY, version.REVISION, version.BuildStamp, jwtAuthUrl)
+	jwtContextKey := config.GetJwtContextKeyFromEnvOrPanic()
+	myVersionReader := gohttp.NewSimpleVersionReader(APP, version.VERSION, version.REPOSITORY, version.REVISION, version.BuildStamp, jwtAuthUrl)
 	// Create a new JWT checker
 	myJwt := gohttp.NewJwtChecker(
 		config.GetJwtSecretFromEnvOrPanic(),
 		config.GetJwtIssuerFromEnvOrPanic(),
 		APP,
-		config.GetJwtContextKeyFromEnvOrPanic(),
+		jwtContextKey,
 		config.GetJwtDurationFromEnvOrPanic(60),
 		l)
 	// Create a new Authenticator with a simple admin user
@@ -120,9 +124,9 @@ func main() {
 	server.AddRoute("GET /goAppInfo", gohttp.GetAppInfoHandler(server))
 
 	mux := server.GetRouter()
-	mux.Handle("POST /login", gohttp.GetLoginPostHandler(server))
+	mux.Handle(fmt.Sprintf("POST %s", jwtAuthUrl), gohttp.GetLoginPostHandler(server))
 	// Protected endpoint (using jwtMiddleware)
-	mux.Handle("GET /protected", myJwt.JwtMiddleware(GetProtectedHandler(server, l)))
+	mux.Handle("GET /protected", myJwt.JwtMiddleware(GetProtectedHandler(server, jwtContextKey, l)))
 
 	mux.Handle("GET /", gohttp.NewPrometheusMiddleware(
 		server.GetPrometheusRegistry(), nil).

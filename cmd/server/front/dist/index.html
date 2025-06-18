@@ -9,7 +9,7 @@
 </head>
 <body>
 <div class="container">
-    <h3>goCloudK8sExampleFront</h3>
+    <h3 id="appInfoHeading">Loading App Info...</h3>
     <form method="post" action="/login" id="loginForm">
         <div class="row">
             <div class="six columns">
@@ -46,6 +46,60 @@
     const msg = document.getElementById("msg");
     let token = null;
     const tokenEl = document.getElementById("tokenExample");
+    // Get the h3 element where app info will be displayed
+    const appInfoHeading = document.getElementById("appInfoHeading");
+
+    // Function to fetch app information from the API
+    async function fetchAppInfo() {
+        try {
+            // Make a GET request to the /goAppInfo endpoint
+            const response = await fetch('/goAppInfo');
+            // Check if the response was successful
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            // Parse the JSON response
+            const appInfo = await response.json();
+
+            // Update the h3 tag with the app name and version
+            if (appInfo.app && appInfo.version) {
+                appInfoHeading.textContent = `${appInfo.app} - v${appInfo.version}`;
+            } else {
+                appInfoHeading.textContent = "App Info Not Available";
+                console.error("App name or version not found in /goAppInfo response.");
+            }
+
+            // Set the form's action attribute to the authUrl
+            if (appInfo.authUrl) {
+                loginForm.action = appInfo.authUrl;
+                console.log(`Login form action set to: ${loginForm.action}`);
+            } else {
+                console.error("authUrl not found in /goAppInfo response.");
+                // Fallback to default action if authUrl is not provided
+                loginForm.action = "/login";
+            }
+
+        } catch (error) {
+            // Log any errors during the fetch operation
+            console.error("Could not fetch app information:", error);
+            appInfoHeading.textContent = "Failed to Load App Info";
+            // Set a default action for the form if fetching fails
+            loginForm.action = "/login";
+        }
+    }
+
+    // Call fetchAppInfo when the DOM content is fully loaded
+    document.addEventListener('DOMContentLoaded', fetchAppInfo);
+
+    async function hashPasswordSHA256(password) {
+        console.log(`in hashPasswordSHA256 function ${password}`);
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         console.log("in loginForm submit event :", e)
@@ -58,6 +112,7 @@
         if ((inputs.login.value.length > 0) && (inputs.password.value.length > 0)) {
             const data = new FormData(loginForm);
             console.log("data", data);
+            // The url for the fetch request is now dynamically set by the fetchAppInfo function
             const url = loginForm.action;
             const response = await fetch(url, {
                 method: 'post',
@@ -66,19 +121,20 @@
             if (!response.ok) {
                 const errorMessage = await response.text();
                 msg.innerHTML = `<h4>${errorMessage}</h4>`;
-            }
-            const jsonResponse = await response.json();
-            const niceToReadResponse = JSON.stringify(jsonResponse, null, 2);
-            if (Object.hasOwn(jsonResponse,'token')) {
-                token = jsonResponse['token'];
-            } else {
-                msg.innerHTML = `<h4> token key not found in ${niceToReadResponse}</h4>`;
-            }
-            console.log(jsonResponse);
-            tokenEl.innerHTML = `export TOKEN="${token}"
+            } else { // Only parse JSON if response is OK
+                const jsonResponse = await response.json();
+                const niceToReadResponse = JSON.stringify(jsonResponse, null, 2);
+                if (Object.hasOwn(jsonResponse, 'token')) {
+                    token = jsonResponse['token'];
+                } else {
+                    msg.innerHTML = `<h4> token key not found in ${niceToReadResponse}</h4>`;
+                }
+                console.log(jsonResponse);
+                tokenEl.innerHTML = `export TOKEN="${token}"
             curl -v  -H "Authorization: Bearer \${TOKEN}" http://localhost:9898/protected
             `;
-            msg.innerHTML = `response from server<pre>${niceToReadResponse}</pre>`;
+                msg.innerHTML = `response from server<pre>${niceToReadResponse}</pre>`;
+            }
         } else {
             msg.innerHTML = "<h4>Login and password values cannot be empty</h4>";
         }

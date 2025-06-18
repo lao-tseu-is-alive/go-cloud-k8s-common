@@ -26,8 +26,6 @@ type JwtChecker interface {
 // Context key for storing the JWT token
 type contextKey string
 
-const jwtTokenKey = contextKey("jwtToken")
-
 // UserInfo are custom claims extending default ones.
 type UserInfo struct {
 	UserId    int    `json:"user_id"`
@@ -131,8 +129,9 @@ func (ji *JwtInfo) JwtMiddleware(next http.Handler) http.Handler {
 		// Token is valid, proceed to the next handler
 		// Store the valid JWT token in the request context
 		ji.logger.Debug(fmt.Sprintf("JwtMiddleware : user: %s got valid Token %s", jwtClaims.User.UserLogin, jwtClaims.ID))
-		// Store the valid JWT token in the echo context
+		// Store the valid JWT token in the request context
 		ctx := context.WithValue(r.Context(), ji.JwtContextKey, jwtClaims)
+		ji.logger.Debug("context %s :%v", ji.JwtContextKey, ctx.Value(ji.JwtContextKey))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 
@@ -177,7 +176,8 @@ func (ji *JwtInfo) GetTokenFromUserInfo(userInfo *UserInfo) (*jwt.Token, error) 
 // GetJwtCustomClaimsFromContext returns the JWT Custom claims from the received  request with context
 func (ji *JwtInfo) GetJwtCustomClaimsFromContext(c context.Context) *JwtCustomClaims {
 	// Retrieve the JWT Claims from the request context
-	jwtClaims := c.Value(jwtTokenKey).(*JwtCustomClaims)
+	jwtClaims := c.Value(ji.JwtContextKey).(*JwtCustomClaims)
+	ji.logger.Debug("GetJwtCustomClaimsFromContext context %s :%v", ji.JwtContextKey, jwtClaims)
 	//claims := JwtCustomClaims{}
 	//err := token.DecodeClaims(&claims)
 	return jwtClaims
