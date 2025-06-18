@@ -1,6 +1,11 @@
 # Start from the latest golang base image
 FROM golang:1.24.4-alpine3.22 AS builder
 
+# Define build arguments for version and build timestamp
+ARG APP_REVISION
+ARG BUILD
+ARG APP_REPOSITORY=https://github.com/lao-tseu-is-alive/go-cloud-k8s-shell
+
 # Add Maintainer Info
 LABEL maintainer="cgil"
 LABEL org.opencontainers.image.title="go-cloud-k8s-common"
@@ -9,7 +14,8 @@ LABEL org.opencontainers.image.url="https://ghcr.io/lao-tseu-is-alive/go-cloud-k
 LABEL org.opencontainers.image.authors="cgil"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.version="1.0.0"
-LABEL org.opencontainers.image.source="https://github.com/lao-tseu-is-alive/go-cloud-k8s-common"
+# Set image version label dynamically
+LABEL org.opencontainers.image.source="${APP_REPOSITORY}"
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -24,9 +30,9 @@ RUN go mod download
 COPY "cmd/server" ./server
 COPY pkg ./pkg
 
-
-# Build the Go app
-RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags="-w -s" -o go-common-server ./server
+# Clean the APP_REPOSITORY for ldflags
+RUN APP_REPOSITORY_CLEAN=$(echo $APP_REPOSITORY | sed 's|https://||') && \
+    CGO_ENABLED=0 GOOS=linux go build -a -ldflags="-w -s -X ${APP_REPOSITORY_CLEAN}/pkg/version.REVISION=${APP_REVISION} -X ${APP_REPOSITORY_CLEAN}/pkg/version.BuildStamp=${BUILD}" -o go-shell-server ./server
 
 
 ######## Start a new stage  #######
