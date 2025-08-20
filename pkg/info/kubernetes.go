@@ -1,10 +1,9 @@
 package info
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttpclient"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
 	"io"
@@ -92,7 +91,7 @@ func GetK8SConnInfo(logger golog.MyLogger) (*K8sInfo, error) {
 		return &k8sInfo, fmt.Errorf("GetK8SConnInfo: error reading GetK8SApiUrlFromEnv. Err: %v", err)
 	}
 	urlVersion := fmt.Sprintf("%s/openapi/v2", k8sUrl)
-	res, err := GetJsonFromUrl(urlVersion, k8sInfo.Token, K8sCaCert, true, defaultReadTimeout, logger)
+	res, err := gohttpclient.GetJsonFromUrlWithBearerAuth(urlVersion, k8sInfo.Token, K8sCaCert, true, defaultReadTimeout, logger)
 	if err != nil {
 
 		logger.Error("GetK8SConnInfo: error in GetJsonFromUrl(url:%s) err:%v", urlVersion, err)
@@ -116,50 +115,6 @@ func GetK8SConnInfo(logger golog.MyLogger) (*K8sInfo, error) {
 	return &k8sInfo, nil
 }
 
-func GetJsonFromUrl(url string, bearerToken string, caCert []byte, allowInsecure bool, readTimeout time.Duration, logger golog.MyLogger) (string, error) {
-	// Create a Bearer string by appending string access token
-	var bearer = "Bearer " + bearerToken
-
-	// Create a new request using http
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		logger.Error("Error on http.NewRequest [ERROR: %v]\n", err)
-		return "", err
-	}
-
-	// add authorization header to the req
-	req.Header.Add("Authorization", bearer)
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			RootCAs:            caCertPool,
-			InsecureSkipVerify: allowInsecure,
-		},
-	}
-	// Send req using http Client
-	client := &http.Client{
-		Transport: tr,
-		Timeout:   readTimeout,
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		logger.Error("Error on sending request.\n[ERROR] -", err)
-		return "", err
-	}
-	defer tools.CloseBody(resp.Body, "GetJsonFromUrl", logger)
-	if resp.StatusCode != http.StatusOK {
-		logger.Error("Error on response StatusCode is not OK Received StatusCode:%d\n", resp.StatusCode)
-		return "", errors.New(fmt.Sprintf("Error on response StatusCode:%d\n", resp.StatusCode))
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Error("Error while reading the response bytes:", err)
-		return "", err
-	}
-	return string(body), nil
-}
 func GetK8sInfo(l golog.MyLogger) (string, string, string) {
 	k8sVersion := ""
 	k8sCurrentNameSpace := ""

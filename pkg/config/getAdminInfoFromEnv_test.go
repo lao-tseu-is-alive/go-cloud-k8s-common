@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestGetAdminUserFromFromEnv(t *testing.T) {
+func TestGetAdminUserFromEnv(t *testing.T) {
 	// Helper function to set and unset environment variables
 	setEnv := func(key, value string) {
 		oldValue, exists := os.LookupEnv(key)
@@ -50,7 +50,7 @@ func TestGetAdminUserFromFromEnv(t *testing.T) {
 				}()
 			}
 
-			result := GetAdminUserFromFromEnvOrPanic(tt.defaultAdminUser)
+			result := GetAdminUserFromEnvOrPanic(tt.defaultAdminUser)
 
 			if !tt.shouldPanic && result != tt.expected {
 				t.Errorf("Expected %s, but got %s", tt.expected, result)
@@ -59,7 +59,7 @@ func TestGetAdminUserFromFromEnv(t *testing.T) {
 	}
 }
 
-func TestGetAdminEmailFromFromEnv(t *testing.T) {
+func TestGetAdminEmailFromEnv(t *testing.T) {
 	// Helper function to set and unset environment variables
 	setEnv := func(key, value string) {
 		oldValue, exists := os.LookupEnv(key)
@@ -104,7 +104,7 @@ func TestGetAdminEmailFromFromEnv(t *testing.T) {
 				}()
 			}
 
-			result := GetAdminEmailFromFromEnvOrPanic(tt.defaultAdminEmail)
+			result := GetAdminEmailFromEnvOrPanic(tt.defaultAdminEmail)
 
 			if !tt.shouldPanic && result != tt.expected {
 				t.Errorf("Expected %s, but got %s", tt.expected, result)
@@ -113,7 +113,7 @@ func TestGetAdminEmailFromFromEnv(t *testing.T) {
 	}
 }
 
-func TestGetAdminIdFromFromEnvOrPanic(t *testing.T) {
+func TestGetAdminIdFromEnvOrPanic(t *testing.T) {
 	tests := []struct {
 		name            string
 		defaultAdminId  int
@@ -161,7 +161,7 @@ func TestGetAdminIdFromFromEnvOrPanic(t *testing.T) {
 				}()
 			}
 
-			result := GetAdminIdFromFromEnvOrPanic(tt.defaultAdminId)
+			result := GetAdminIdFromEnvOrPanic(tt.defaultAdminId)
 
 			if !tt.shouldPanic && result != tt.expectedAdminId {
 				t.Errorf("Expected admin ID %d, but got %d", tt.expectedAdminId, result)
@@ -170,7 +170,7 @@ func TestGetAdminIdFromFromEnvOrPanic(t *testing.T) {
 	}
 }
 
-func TestGetAdminPasswordFromFromEnvOrPanic(t *testing.T) {
+func TestGetAdminPasswordFromEnvOrPanic(t *testing.T) {
 	setEnv := func(key, value string) {
 		oldValue, exists := os.LookupEnv(key)
 		os.Setenv(key, value)
@@ -220,7 +220,7 @@ func TestGetAdminPasswordFromFromEnvOrPanic(t *testing.T) {
 				}()
 			}
 
-			result := GetAdminPasswordFromFromEnvOrPanic()
+			result := GetAdminPasswordFromEnvOrPanic()
 
 			if !tt.shouldPanic && result != tt.expected {
 				t.Errorf("Expected %s, but got %s", tt.expected, result)

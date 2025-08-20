@@ -42,7 +42,7 @@ func GetJwtIssuerFromEnvOrPanic() string {
 }
 
 // GetJwtContextKeyFromEnvOrPanic returns a secret to be used with JWT based on the content of the env variable
-// JWT_CONTEXT_KEY: should exist and contain a string with your secret or this function will panic
+// JWT_CONTEXT_KEY : should exist and contain a string with your secret or this function will panic
 func GetJwtContextKeyFromEnvOrPanic() string {
 	val, exist := os.LookupEnv("JWT_CONTEXT_KEY")
 	if !exist {
@@ -61,7 +61,7 @@ func GetJwtContextKeyFromEnvOrPanic() string {
 }
 
 // GetJwtAuthUrlFromEnvOrPanic returns the url to be used for JWT authentication based on the content of the env variable
-// JWT_AUTH_URL: should exist and contain a string with your url to be used or this function will panic
+// JWT_AUTH_URL : should exist and contain a string with your url to be used or this function will panic
 func GetJwtAuthUrlFromEnvOrPanic() string {
 	val, exist := os.LookupEnv("JWT_AUTH_URL")
 	if !exist {
@@ -76,7 +76,7 @@ func GetJwtAuthUrlFromEnvOrPanic() string {
 }
 
 // GetJwtDurationFromEnvOrPanic returns a number  string based on the values of environment variable :
-// JWT_DURATION_MINUTES : int value between 1 and 14400 minutes, 10 days seems an extreme max value
+// JWT_DURATION_MINUTES : int value between 1 and 1440 minutes, 24H or 1 day is the maximum duration
 // the parameter defaultJwtDuration will be used if this env variable is not defined
 // in case the ENV variable JWT_DURATION_MINUTES exists and contains an invalid integer the functions ends execution with Fatalreturns 0 and an error
 func GetJwtDurationFromEnvOrPanic(defaultJwtDuration int) int {
@@ -89,8 +89,28 @@ func GetJwtDurationFromEnvOrPanic(defaultJwtDuration int) int {
 			panic("💥💥 ERROR: CONFIG ENV JWT_DURATION_MINUTES should contain a valid integer.")
 		}
 	}
-	if JwtDuration < 1 || JwtDuration > 14400 {
-		panic("💥💥 ERROR: CONFIG ENV JWT_DURATION_MINUTES should contain an integer between 1 and 14400")
+	if JwtDuration < 1 || JwtDuration > 1440 {
+		panic("💥💥 ERROR: CONFIG ENV JWT_DURATION_MINUTES should contain an integer between 1 and 1440")
 	}
 	return JwtDuration
+}
+
+// GetJwtCookieNameFromEnv returns a the name of the http-only cookie to be used to use JWT from env variable
+// JWT_COOKIE_NAME : should exist and contain a string with your cookie name or this function will use the passed default
+func GetJwtCookieNameFromEnv(defaultName string) string {
+	val, exist := os.LookupEnv("JWT_COOKIE_NAME")
+	if !exist {
+		return defaultName
+	}
+	return fmt.Sprintf("%s", val)
+}
+
+// GetJwtStatusUrlFromEnv returns the url to be used to check JWT token from env variable
+// JWT_STATUS_URL : should exist and contain a relative url for status token check or this function will use the passed default
+func GetJwtStatusUrlFromEnv(defaultName string) string {
+	val, exist := os.LookupEnv("JWT_STATUS_URL")
+	if !exist {
+		return defaultName
+	}
+	return fmt.Sprintf("%s", val)
 }

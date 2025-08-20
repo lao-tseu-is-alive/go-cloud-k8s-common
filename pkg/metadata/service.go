@@ -52,6 +52,7 @@ func (s *Service) CreateMetadataTableOrFail() {
 		} else {
 			s.Log.Warn("database does not contain any  registered service in metadata table")
 		}
+		return
 	} else {
 		s.Log.Warn("database does not contain the metadata table, will try to create it...")
 
@@ -61,6 +62,7 @@ func (s *Service) CreateMetadataTableOrFail() {
 			panic(fmt.Errorf("💥💥 unable to create the table «metadata». error:%v", err))
 		}
 		s.Log.Info("metadata table was created, rows affected : %v", int(RowsAffected))
+		return
 	}
 }
 

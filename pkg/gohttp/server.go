@@ -120,14 +120,12 @@ func (s *Server) routes() {
 	s.router.Handle("GET /time", GetTimeHandler(s.logger))
 	s.router.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
 		TraceRequest("GetVersionHandler", r, s.logger)
-		err := s.JsonResponse(w, s.VersionReader.GetVersionInfo())
+		err := s.Json(w, s.VersionReader.GetVersionInfo(), http.StatusOK, "  ")
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 	})
-	s.router.Handle("GET /readiness", GetReadinessHandler(s.logger))
-	s.router.Handle("GET /health", GetHealthHandler(s.logger))
 	//expose the default prometheus metrics for Go applications
 	s.router.Handle("GET /metrics", NewPrometheusMiddleware(
 		s.registry, nil).
@@ -187,57 +185,30 @@ func (s *Server) StartServer() {
 
 }
 
-// JsonResponse writes a JSON response with the given status code
-func (s *Server) JsonResponse(w http.ResponseWriter, result interface{}) error {
-	return s.JsonResponseWithStatus(w, result, http.StatusOK)
-}
-
-// JsonResponseWithStatus writes a JSON response with the given status code
-func (s *Server) JsonResponseWithStatus(w http.ResponseWriter, result interface{}, statusCode int) error {
+// Json writes a JSON response with the given status code
+func (s *Server) Json(w http.ResponseWriter, result interface{}, statusCode int, indent string) error {
 	// Set headers before any potential error occurs
 	w.Header().Set(HeaderContentType, MIMEAppJSONCharsetUTF8)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
-	// Marshal the response
-	body, err := json.Marshal(result)
-	if err != nil {
-		s.logger.Error("JSON marshal failed. Error: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return err
+	// Create JSON encoder
+	enc := json.NewEncoder(w)
+	if indent != "" {
+		enc.SetIndent("", indent)
 	}
 
-	// Set status code and write response
+	// Set status code before encoding
 	w.WriteHeader(statusCode)
-	_, err = w.Write(body)
-	if err != nil {
-		s.logger.Error("w.Write failed. Error: %v", err)
-		// Can't write to response at this point as headers are already sent
+
+	// Encode and write response
+	if err := enc.Encode(result); err != nil {
+		s.logger.Error("JSON encoding failed. Error: %v", err)
+		// Note: If encoding fails after partial write, the response may already be sent.
+		// Log the error and return it, but the client may see a partial response.
 		return err
 	}
-	return nil
-}
 
-// WaitForHttpServer attempts to establish a TCP connection to listenAddress
-// in a given amount of time. It returns upon a successful connection;
-// otherwise exits with an error.
-func WaitForHttpServer(listenAddress string, waitDuration time.Duration, numRetries int) {
-	log.Printf("INFO: 'WaitForHttpServer Will wait for server to be up at %s for %v seconds, with %d retries'\n", listenAddress, waitDuration.Seconds(), numRetries)
-	httpClient := http.Client{
-		Timeout: 5 * time.Second,
-	}
-	for i := 0; i < numRetries; i++ {
-		//conn, err := net.DialTimeout("tcp", listenAddress, dialTimeout)
-		resp, err := httpClient.Get(listenAddress)
-		if err != nil {
-			fmt.Printf("\n[%d] Cannot make http get %s: %v\n", i, listenAddress, err)
-			time.Sleep(waitDuration)
-			continue
-		}
-		// All seems is good
-		fmt.Printf("OK: Server responded after %d retries, with status code %d ", i, resp.StatusCode)
-		return
-	}
-	log.Fatalf("Server %s not ready up after %d attempts", listenAddress, numRetries)
+	return nil
 }
 
 // waitForShutdownToExit will wait for interrupt signal SIGINT or SIGTERM and gracefully shutdown the server after secondsToWait seconds.

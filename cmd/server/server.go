@@ -75,7 +75,7 @@ func GetProtectedHandler(server *gohttp.Server, jwtContextKey string, l golog.My
 			return
 		}
 		// respond with protected data
-		err := server.JsonResponse(w, claims)
+		err := server.Json(w, claims, http.StatusOK, "")
 		if err != nil {
 			l.Error("error writing json response to client : %v", err)
 			http.Error(w, "Error responding with protected data", http.StatusInternalServerError)
@@ -105,10 +105,10 @@ func main() {
 		l)
 	// Create a new Authenticator with a simple admin user
 	myAuthenticator := gohttp.NewSimpleAdminAuthenticator(
-		config.GetAdminUserFromFromEnvOrPanic(defaultAdminUser),
-		config.GetAdminPasswordFromFromEnvOrPanic(),
-		config.GetAdminEmailFromFromEnvOrPanic(defaultAdminEmail),
-		config.GetAdminIdFromFromEnvOrPanic(defaultAdminId),
+		config.GetAdminUserFromEnvOrPanic(defaultAdminUser),
+		config.GetAdminPasswordFromEnvOrPanic(),
+		config.GetAdminEmailFromEnvOrPanic(defaultAdminEmail),
+		config.GetAdminIdFromEnvOrPanic(defaultAdminId),
 		myJwt)
 	server := gohttp.CreateNewServerFromEnvOrFail(
 		defaultPort,

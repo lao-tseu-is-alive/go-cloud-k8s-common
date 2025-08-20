@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttpclient"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
@@ -60,10 +61,10 @@ func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 		l)
 	// Create a new Authenticator with a simple admin user
 	myAuthenticator := gohttp.NewSimpleAdminAuthenticator(
-		config.GetAdminUserFromFromEnvOrPanic(defaultAdminUser),
-		config.GetAdminPasswordFromFromEnvOrPanic(),
-		config.GetAdminEmailFromFromEnvOrPanic(defaultAdminEmail),
-		config.GetAdminIdFromFromEnvOrPanic(defaultAdminId),
+		config.GetAdminUserFromEnvOrPanic(defaultAdminUser),
+		config.GetAdminPasswordFromEnvOrPanic(),
+		config.GetAdminEmailFromEnvOrPanic(defaultAdminEmail),
+		config.GetAdminIdFromEnvOrPanic(defaultAdminId),
 		myJwt)
 	myServer := gohttp.CreateNewServerFromEnvOrFail(
 		defaultPort,
@@ -266,7 +267,7 @@ func TestGetJsonFromUrl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := info.GetJsonFromUrl(tt.args.url, tt.args.bearerToken, tt.args.caCert, tt.args.allowInsecure, 10*time.Second, tt.args.logger)
+			got, err := gohttpclient.GetJsonFromUrlWithBearerAuth(tt.args.url, tt.args.bearerToken, tt.args.caCert, tt.args.allowInsecure, 10*time.Second, tt.args.logger)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetJsonFromUrl(%v, %v, %v, %v)", tt.args.url, tt.args.bearerToken, tt.args.caCert, tt.args.logger)) {
 				return
 			}
@@ -346,7 +347,7 @@ func TestMainExecution(t *testing.T) {
 	// starting main in his own go routine
 	var wg sync.WaitGroup
 	startMainServer(&wg)
-	gohttp.WaitForHttpServer(listenAddr, 1*time.Second, 10)
+	gohttpclient.WaitForHttpServer(listenAddr, 1*time.Second, 10, l)
 
 	tests := []TestMainStruct{
 		{

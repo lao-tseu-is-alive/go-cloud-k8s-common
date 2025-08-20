@@ -13,21 +13,73 @@ import (
 	"time"
 )
 
-func GetReadinessHandler(l golog.MyLogger) http.HandlerFunc {
-	handlerName := "GetReadinessHandler"
-	l.Debug(initCallMsg, handlerName)
-	return func(w http.ResponseWriter, r *http.Request) {
-		TraceRequest(handlerName, r, l)
-		w.WriteHeader(http.StatusOK)
+const (
+	ReadinessOKMsg  = "(%s) is ready"
+	ReadinessErrMsg = "(%s) is not ready"
+	HealthOKMsg     = "(%s) is healthy"
+	HealthErrMsg    = "(%s) is not healthy"
+)
+
+type FuncAreWeReady func(msg string) bool
+
+type FuncAreWeHealthy func(msg string) bool
+
+type StandardResponse struct {
+	Status string      `json:"status"`
+	Msg    string      `json:"msg"`
+	IsOk   bool        `json:"isOk"`
+	Data   interface{} `json:"data,omitempty"`   // Optional: for including response data
+	Errors []string    `json:"errors,omitempty"` // Optional: for detailed error messages
+}
+
+func GetStandardResponse(statusMsg, msg string, state bool, data interface{}, errors ...string) StandardResponse {
+	return StandardResponse{
+		Status: statusMsg,
+		Msg:    msg,
+		IsOk:   state,
+		Data:   data,
+		Errors: errors,
 	}
 }
 
-func GetHealthHandler(l golog.MyLogger) http.HandlerFunc {
-	handlerName := "GetHealthHandler"
-	l.Debug(initCallMsg, handlerName)
+func (s *Server) SendJSONResponse(w http.ResponseWriter, statusCode int, status, msg string, isOk bool, data interface{}, errors ...string) {
+	response := GetStandardResponse(status, msg, isOk, data, errors...)
+	if statusCode >= 400 {
+		s.logger.Warn("http status code : %d, %s", statusCode, msg)
+	}
+	err := s.Json(w, response, statusCode, "")
+	if err != nil {
+		s.logger.Warn("error while sending json http status code : %d, %s", statusCode, msg)
+	}
+}
+
+func (s *Server) GetReadinessHandler(readyFunc FuncAreWeReady, msg string) http.HandlerFunc {
+	handlerName := "GetReadinessHandler"
+	s.logger.Debug(initCallMsg, handlerName)
 	return func(w http.ResponseWriter, r *http.Request) {
-		TraceRequest(handlerName, r, l)
-		w.WriteHeader(http.StatusOK)
+		ready := readyFunc(msg)
+		if ready {
+			msgOK := fmt.Sprintf(ReadinessOKMsg, msg)
+			s.SendJSONResponse(w, http.StatusOK, "ready", msgOK, ready, nil)
+		} else {
+			msgErr := fmt.Sprintf(ReadinessErrMsg, msg)
+			s.SendJSONResponse(w, http.StatusServiceUnavailable, "error", msgErr, ready, nil)
+		}
+	}
+}
+
+func (s *Server) GetHealthHandler(healthyFunc FuncAreWeHealthy, msg string) http.HandlerFunc {
+	handlerName := "GetHealthHandler"
+	s.logger.Debug(initCallMsg, handlerName)
+	return func(w http.ResponseWriter, r *http.Request) {
+		healthy := healthyFunc(msg)
+		if healthy {
+			msgOK := fmt.Sprintf(HealthOKMsg, msg)
+			s.SendJSONResponse(w, http.StatusOK, "healthy", msgOK, healthy, nil)
+		} else {
+			msgErr := fmt.Sprintf(HealthErrMsg, msg)
+			s.SendJSONResponse(w, http.StatusServiceUnavailable, "error", msgErr, healthy, nil)
+		}
 	}
 }
 
@@ -128,7 +180,7 @@ func GetInfoHandler(s *Server) http.HandlerFunc {
 		data.UptimeOs = uptimeOS
 		guid := xid.New()
 		data.RequestId = guid.String()
-		err = s.JsonResponse(w, data)
+		err = s.Json(w, data, http.StatusOK, "")
 		if err != nil {
 			logger.Error("ERROR:  %v doing JsonResponse in %s, from IP: [%s]\n", err, handlerName, r.RemoteAddr)
 			return
@@ -210,7 +262,7 @@ func GetAppInfoHandler(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		TraceRequest(handlerName, r, s.logger)
 		appInfo := s.VersionReader.GetVersionInfo()
-		err := s.JsonResponseWithStatus(w, appInfo, http.StatusOK)
+		err := s.Json(w, appInfo, http.StatusOK, "")
 		if err != nil {
 			s.logger.Error("Error doing JsonResponse'%s': %v", handlerName, err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
