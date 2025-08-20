@@ -2,8 +2,10 @@ package gohttp
 
 import (
 	"fmt"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -20,9 +22,18 @@ const (
 	assertCorrectStatusCodeExpected = "expected status code should be returned"
 	fmtErr                          = "### GOT ERROR : %s\n%v"
 	msgRespNotExpected              = "Response should contain what was expected."
+	APP                             = "goCloudK8sCommonTestServer"
+	defaultPort                     = 9999
+	defaultServerIp                 = "127.0.0.1"
+	defaultAdminId                  = 99999
+	defaultAdminUser                = "goadmin"
+	defaultAdminEmail               = "goadmin@lausanne.ch"
 )
 
-var l golog.MyLogger
+var (
+	l      golog.MyLogger
+	server *Server
+)
 
 type testStruct struct {
 	name           string
@@ -120,7 +131,8 @@ func TestGoHttpServerHandlerStaticPage(t *testing.T) {
 }
 
 func TestGoHttpServerHealthHandler(t *testing.T) {
-	ts := httptest.NewServer(GetHealthHandler(l))
+
+	ts := httptest.NewServer(server.GetHealthHandler(func(msg string) bool { return true }, "healthyCheck"))
 	defer ts.Close()
 
 	newRequest := func(method, url string, body string) *http.Request {
@@ -161,7 +173,7 @@ func TestGoHttpServerHealthHandler(t *testing.T) {
 }
 
 func TestGoHttpServerReadinessHandler(t *testing.T) {
-	ts := httptest.NewServer(GetReadinessHandler(l))
+	ts := httptest.NewServer(server.GetReadinessHandler(func(msg string) bool { return true }, "readyCheck"))
 	defer ts.Close()
 
 	newRequest := func(method, url string, body string) *http.Request {
@@ -258,4 +270,28 @@ func init() {
 			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 		}
 	}
+	myVersionReader := NewSimpleVersionReader(APP, version.VERSION, version.REPOSITORY, version.REVISION, version.BuildStamp, "login")
+	// Create a new JWT checker
+	myJwt := NewJwtChecker(
+		config.GetJwtSecretFromEnvOrPanic(),
+		config.GetJwtIssuerFromEnvOrPanic(),
+		APP,
+		"context",
+		config.GetJwtDurationFromEnvOrPanic(60),
+		l)
+	// Create a new Authenticator with a simple admin user
+	myAuthenticator := NewSimpleAdminAuthenticator(
+		config.GetAdminUserFromEnvOrPanic(defaultAdminUser),
+		config.GetAdminPasswordFromEnvOrPanic(),
+		config.GetAdminEmailFromEnvOrPanic(defaultAdminEmail),
+		config.GetAdminIdFromEnvOrPanic(defaultAdminId),
+		myJwt)
+	server = CreateNewServerFromEnvOrFail(
+		defaultPort,
+		defaultServerIp,
+		myAuthenticator,
+		myJwt,
+		myVersionReader,
+		l)
+
 }

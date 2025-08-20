@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"log"
 	"testing"
-	"time"
 )
 
 const (
@@ -14,59 +13,6 @@ const (
 )
 
 var l golog.MyLogger
-
-func TestGetJsonFromUrl(t *testing.T) {
-	type args struct {
-		url           string
-		bearerToken   string
-		caCert        []byte
-		allowInsecure bool
-		readTimeout   time.Duration
-		logger        golog.MyLogger
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetJsonFromUrl(tt.args.url, tt.args.bearerToken, tt.args.caCert, tt.args.allowInsecure, tt.args.readTimeout, tt.args.logger)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetJsonFromUrl() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("GetJsonFromUrl() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGetKubernetesApiUrlFromEnv(t *testing.T) {
-	tests := []struct {
-		name    string
-		want    string
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetK8SApiUrlFromEnv()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetK8SApiUrlFromEnv() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("GetK8SApiUrlFromEnv() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func TestGetKubernetesConnInfo(t *testing.T) {
 
@@ -175,4 +121,5 @@ func init() {
 			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 		}
 	}
+
 }
