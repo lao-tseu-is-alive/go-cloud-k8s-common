@@ -5,18 +5,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rs/xid"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/xid"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 // Server is a struct type to store information related to all handlers of web server
@@ -167,22 +169,78 @@ func (s *Server) GetJwtChecker() JwtChecker {
 	return s.JwtCheck
 }
 
-// StartServer initializes all the handlers paths of this web server, it is called inside the NewGoHttpServer constructor
+// StartServer determines which server type to start based on config and starts it.
 func (s *Server) StartServer() {
+	tlsMode := config.GetTlsMode()
+	s.logger.Info("Server starting with TLS_MODE: %s", tlsMode)
 
-	// Starting the web server in his own goroutine
+	switch tlsMode {
+	case "manual":
+		s.startHttpsManualServer()
+	case "autocert":
+		s.startHttpsAutocertServer()
+	case "none":
+		fallthrough
+	default:
+		s.startHttpServer()
+	}
+
+	// Graceful Shutdown on SIGINT (interrupt)
+	waitForShutdownToExit(&s.httpServer, secondsShutDownTimeout)
+}
+
+// startHttpServer starts a plain HTTP server.
+func (s *Server) startHttpServer() {
 	go func() {
-		s.logger.Debug("http server listening at %s://%s/", defaultProtocol, s.listenAddress)
+		s.logger.Info("Starting HTTP server on %s", s.listenAddress)
 		err := s.httpServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.logger.Fatal("💥💥 ERROR: 'Could not listen on %q: %s'\n", s.listenAddress, err)
 		}
 	}()
-	s.logger.Debug("Server listening on : %s PID:[%d]", s.httpServer.Addr, os.Getpid())
+}
 
-	// Graceful Shutdown on SIGINT (interrupt)
-	waitForShutdownToExit(&s.httpServer, secondsShutDownTimeout)
+// startHttpsManualServer starts an HTTPS server with manually provided certs.
+func (s *Server) startHttpsManualServer() {
+	certFile := config.GetTlsCertFile()
+	keyFile := config.GetTlsKeyFile()
 
+	if certFile == "" || keyFile == "" {
+		s.logger.Fatal("💥💥 ERROR: TLS_CERT_FILE and TLS_KEY_FILE must be set when ENABLE_HTTPS is true")
+	}
+
+	go func() {
+		s.logger.Info("Starting HTTPS server with manual certs on %s", s.listenAddress)
+		err := s.httpServer.ListenAndServeTLS(certFile, keyFile)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Fatal("💥💥 ERROR: 'Could not listen on %q: %s'\n", s.listenAddress, err)
+		}
+	}()
+}
+
+// startHttpsAutocertServer starts an HTTPS server using autocert for automatic certs.
+func (s *Server) startHttpsAutocertServer() {
+	hosts := config.GetAutocertHosts()
+	if len(hosts) == 0 {
+		s.logger.Fatal("💥💥 ERROR: AUTOCERT_HOSTS must be set when ENABLE_AUTOCERT is true")
+	}
+
+	certManager := autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(hosts...),
+		Cache:      autocert.DirCache(config.GetAutocertDir()),
+	}
+
+	s.httpServer.Addr = ":443" // Autocert requires port 443
+	s.httpServer.TLSConfig = certManager.TLSConfig()
+
+	go func() {
+		s.logger.Info("Starting HTTPS server with autocert on :443")
+		err := s.httpServer.ListenAndServeTLS("", "") // Cert and key are handled by autocert
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Fatal("💥💥 ERROR: 'Could not listen on :443: %s'\n", err)
+		}
+	}()
 }
 
 // Json writes a JSON response with the given status code
