@@ -3,19 +3,21 @@ package main
 import (
 	"embed"
 	"fmt"
+	"io/fs"
+	"log"
+	"net/http"
+
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
-	"io/fs"
-	"log"
-	"net/http"
 )
 
 const (
 	APP               = "goCloudK8sCommonDemoServer"
 	defaultPort       = 9999
 	defaultServerIp   = "0.0.0.0"
+	defaultLogName    = "stderr"
 	defaultServerPath = "/"
 	defaultWebRootDir = "front/dist"
 	defaultAdminId    = 99999
@@ -85,8 +87,7 @@ func GetProtectedHandler(server *gohttp.Server, jwtContextKey string, l golog.My
 }
 
 func main() {
-	// Use a more appropriate logger type since "zap" is not implemented
-	l, err := golog.NewLogger("simple", golog.DebugLevel, APP)
+	l, err := golog.NewLogger("simple", config.GetLogWriterFromEnvOrPanic(defaultLogName), golog.DebugLevel, APP)
 	if err != nil {
 		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 	}
@@ -110,13 +111,28 @@ func main() {
 		config.GetAdminEmailFromEnvOrPanic(defaultAdminEmail),
 		config.GetAdminIdFromEnvOrPanic(defaultAdminId),
 		myJwt)
+
+	// Define your protected routes and their handlers in a map
+	protectedAPI := map[string]http.HandlerFunc{
+		"GET /api/v1/data": func(w http.ResponseWriter, r *http.Request) {
+			claims := myJwt.GetJwtCustomClaimsFromContext(r.Context())
+			// Your logic here...
+			fmt.Fprintf(w, "Hello, %s! Here is your protected data.", claims.User.UserName)
+		},
+		"POST /api/v1/submit": func(w http.ResponseWriter, r *http.Request) {
+			// Your logic here...
+			fmt.Fprintln(w, "Data submitted successfully.")
+		},
+	}
+
 	server := gohttp.CreateNewServerFromEnvOrFail(
 		defaultPort,
-		defaultServerIp,
-		myAuthenticator,
-		myJwt,
-		myVersionReader,
-		l)
+		defaultServerIp, APP, l,
+		gohttp.WithAuthentication(myAuthenticator),
+		gohttp.WithJwtChecker(myJwt),
+		gohttp.WithProtectedRoutes(myJwt, protectedAPI),
+		gohttp.WithVersionReader(myVersionReader),
+	)
 
 	// curl -vv  -X GET  -H 'Content-Type: application/json'  http://localhost:9999/time	==>200 OK , {"time":"2024-07-15T15:30:21+02:00"}
 	server.AddRoute("GET /hello", gohttp.GetStaticPageHandler("Hello", "Hello World!", l))

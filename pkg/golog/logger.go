@@ -1,6 +1,9 @@
 package golog
 
-import "log"
+import (
+	"io"
+	"log"
+)
 
 type MyLogger interface {
 	Debug(msg string, v ...interface{})
@@ -26,7 +29,7 @@ const (
 	FatalLevel
 )
 
-func NewLogger(loggerType string, logLevel Level, prefix string) (MyLogger, error) {
+func NewLogger(loggerType string, out io.Writer, logLevel Level, prefix string) (MyLogger, error) {
 	var (
 		logger MyLogger
 		err    error
@@ -36,7 +39,7 @@ func NewLogger(loggerType string, logLevel Level, prefix string) (MyLogger, erro
 	case "production":
 		// here we can handle structured  json log
 	default:
-		logger, err = NewSimpleLogger(logLevel, prefix)
+		logger, err = NewSimpleLogger(out, logLevel, prefix)
 		if err != nil {
 			return nil, err
 		}

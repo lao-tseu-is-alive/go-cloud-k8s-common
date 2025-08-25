@@ -3,6 +3,7 @@ package golog
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 )
@@ -36,8 +37,8 @@ type SimpleLogger struct {
 	maxLevel Level
 }
 
-func NewSimpleLogger(logLevel Level, prefix string) (MyLogger, error) {
-	l := log.New(os.Stdout, prefix, log.Ldate|log.Ltime|log.Lshortfile)
+func NewSimpleLogger(out io.Writer, logLevel Level, prefix string) (MyLogger, error) {
+	l := log.New(out, prefix, log.Ldate|log.Ltime|log.Lshortfile)
 	return &SimpleLogger{logger: l, maxLevel: logLevel}, nil
 }
 

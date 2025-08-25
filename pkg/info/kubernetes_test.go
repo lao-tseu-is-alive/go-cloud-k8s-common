@@ -2,10 +2,12 @@ package info
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"testing"
+
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/stretchr/testify/assert"
-	"log"
-	"testing"
 )
 
 const (
@@ -111,12 +113,12 @@ func TestGetKubernetesLatestVersion(t *testing.T) {
 func init() {
 	var err error
 	if DEBUG {
-		l, err = golog.NewLogger("zap", golog.DebugLevel, "test_kubernetes")
+		l, err = golog.NewLogger("zap", os.Stdout, golog.DebugLevel, "test_kubernetes")
 		if err != nil {
 			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 		}
 	} else {
-		l, err = golog.NewLogger("zap", golog.ErrorLevel, "test_kubernetes")
+		l, err = golog.NewLogger("zap", os.Stdout, golog.ErrorLevel, "test_kubernetes")
 		if err != nil {
 			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 		}

@@ -2,19 +2,19 @@ package gohttp
 
 import (
 	"fmt"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -260,38 +260,17 @@ func TestGoHttpServerTimeHandler(t *testing.T) {
 func init() {
 	var err error
 	if DEBUG {
-		l, err = golog.NewLogger("zap", golog.DebugLevel, "test_handlers")
+		l, err = golog.NewLogger("zap", os.Stdout, golog.DebugLevel, "test_handlers")
 		if err != nil {
 			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 		}
 	} else {
-		l, err = golog.NewLogger("zap", golog.ErrorLevel, "test_handlers")
+		l, err = golog.NewLogger("zap", os.Stdout, golog.ErrorLevel, "test_handlers")
 		if err != nil {
 			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 		}
 	}
-	myVersionReader := NewSimpleVersionReader(APP, version.VERSION, version.REPOSITORY, version.REVISION, version.BuildStamp, "login")
-	// Create a new JWT checker
-	myJwt := NewJwtChecker(
-		config.GetJwtSecretFromEnvOrPanic(),
-		config.GetJwtIssuerFromEnvOrPanic(),
-		APP,
-		"context",
-		config.GetJwtDurationFromEnvOrPanic(60),
-		l)
-	// Create a new Authenticator with a simple admin user
-	myAuthenticator := NewSimpleAdminAuthenticator(
-		config.GetAdminUserFromEnvOrPanic(defaultAdminUser),
-		config.GetAdminPasswordFromEnvOrPanic(),
-		config.GetAdminEmailFromEnvOrPanic(defaultAdminEmail),
-		config.GetAdminIdFromEnvOrPanic(defaultAdminId),
-		myJwt)
-	server = CreateNewServerFromEnvOrFail(
-		defaultPort,
-		defaultServerIp,
-		myAuthenticator,
-		myJwt,
-		myVersionReader,
-		l)
+
+	server = CreateNewServerFromEnvOrFail(defaultPort, defaultServerIp, "serverTest", l)
 
 }

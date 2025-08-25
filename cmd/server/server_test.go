@@ -4,14 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttpclient"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"log"
 	"net/http"
@@ -21,6 +13,15 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/config"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttp"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/gohttpclient"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/tools"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/version"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -68,11 +69,11 @@ func TestGoHttpServerMyDefaultHandler(t *testing.T) {
 		myJwt)
 	myServer := gohttp.CreateNewServerFromEnvOrFail(
 		defaultPort,
-		defaultServerIp,
-		myAuthenticator,
-		myJwt,
-		myVersionReader,
-		l)
+		defaultServerIp, "serverTest", l,
+		gohttp.WithAuthentication(myAuthenticator),
+		gohttp.WithJwtChecker(myJwt),
+		gohttp.WithVersionReader(myVersionReader),
+	)
 
 	ts := httptest.NewServer(GetMyDefaultHandler(myServer, defaultWebRootDir, content))
 	defer ts.Close()
@@ -448,12 +449,12 @@ func TestMainExecution(t *testing.T) {
 func init() {
 	var err error
 	if DEBUG {
-		l, err = golog.NewLogger("zap", golog.DebugLevel, fmt.Sprintf("testing_%s ", APP))
+		l, err = golog.NewLogger("zap", os.Stdout, golog.DebugLevel, fmt.Sprintf("testing_%s ", APP))
 		if err != nil {
 			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 		}
 	} else {
-		l, err = golog.NewLogger("zap", golog.ErrorLevel, fmt.Sprintf("testing_%s ", APP))
+		l, err = golog.NewLogger("zap", os.Stdout, golog.ErrorLevel, fmt.Sprintf("testing_%s ", APP))
 		if err != nil {
 			log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 		}

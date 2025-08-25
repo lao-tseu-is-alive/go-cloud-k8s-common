@@ -2,10 +2,12 @@ package metadata
 
 import (
 	"errors"
+	"os"
+	"testing"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 // MockDB is a mock implementation of the database.DB interface
@@ -67,7 +69,7 @@ func TestService_CreateMetadataTableOrFail(t *testing.T) {
 		QueryIntResult: 5, // Simulate 5 services existing
 		QueryIntErr:    nil,
 	}
-	logger, _ := golog.NewLogger("zap", golog.WarnLevel, "Test_CreateMetadataTableOrFail")
+	logger, _ := golog.NewLogger("zap", os.Stdout, golog.WarnLevel, "Test_CreateMetadataTableOrFail")
 	service := &Service{Log: logger, Db: mockDB}
 	service.CreateMetadataTableOrFail()
 
@@ -91,7 +93,7 @@ func TestService_CreateMetadataTableOrFail(t *testing.T) {
 }
 
 func TestService_GetServiceVersionOrFail(t *testing.T) {
-	logger, _ := golog.NewLogger("zap", golog.WarnLevel, "Test_GetServiceVersionOrFail")
+	logger, _ := golog.NewLogger("zap", os.Stdout, golog.WarnLevel, "Test_GetServiceVersionOrFail")
 
 	// Test case 1: Service exists, version retrieval succeeds
 	mockDB := &MockDB{
@@ -133,7 +135,7 @@ func TestService_GetServiceVersionOrFail(t *testing.T) {
 }
 
 func TestService_SetServiceVersionOrFail(t *testing.T) {
-	logger, _ := golog.NewLogger("zap", golog.WarnLevel, "TestService_SetServiceVersionOrFail")
+	logger, _ := golog.NewLogger("zap", os.Stdout, golog.WarnLevel, "TestService_SetServiceVersionOrFail")
 	// Test case 1: Service exists, version update succeeds
 	mockDB := &MockDB{
 		QueryIntResult:    1, // Service exists

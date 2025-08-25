@@ -60,7 +60,13 @@ func TestServer_startHttpsManualServer(t *testing.T) {
 	// --- Run Test ---
 	assert.NotPanics(t, func() {
 		// Create the server with valid mock dependencies
-		server := CreateNewServerFromEnvOrFail(9898, "127.0.0.1", myAuthenticator, myJwt, myVersionReader, l)
+		server := CreateNewServerFromEnvOrFail(
+			defaultPort,
+			defaultServerIp, APP, l,
+			WithAuthentication(myAuthenticator),
+			WithJwtChecker(myJwt),
+			WithVersionReader(myVersionReader),
+		)
 		// We're just testing the startup logic, so we start it in a goroutine
 		// and give it a moment to initialize before the test finishes.
 		go server.StartServer()
@@ -113,7 +119,7 @@ func createTempCert() (certPath, keyPath string, err error) {
 // Re-using the init() from your original handlers_test.go to setup logger
 func init() {
 	var err error
-	if l, err = golog.NewLogger("simple", golog.DebugLevel, "test_handlers"); err != nil {
+	if l, err = golog.NewLogger("simple", os.Stdout, golog.DebugLevel, "test_handlers"); err != nil {
 		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 	}
 }

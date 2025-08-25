@@ -3,14 +3,15 @@ package gohttp
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
-	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rs/xid"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/info"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/xid"
 )
 
 const (

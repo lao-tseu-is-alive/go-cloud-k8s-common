@@ -37,7 +37,7 @@ type Server struct {
 }
 
 // NewGoHttpServer is a constructor that initializes the server mux (routes) and all fields of the  Server type
-func NewGoHttpServer(listenAddress string, Auth Authentication, JwtCheck JwtChecker, Ver VersionReader, logger golog.MyLogger) *Server {
+func NewGoHttpServer(appName, listenAddress string, logger golog.MyLogger, opts ...ServerOption) *Server {
 	myServerMux := http.NewServeMux()
 	// Create non-global registry.
 	registry := prometheus.NewRegistry()
@@ -47,8 +47,6 @@ func NewGoHttpServer(listenAddress string, Auth Authentication, JwtCheck JwtChec
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
-	v := Ver.GetVersionInfo()
-	appName := v.App
 	RootPathGetCounter := prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: fmt.Sprintf("%s_root_get_request_count", appName),
@@ -81,9 +79,7 @@ func NewGoHttpServer(listenAddress string, Auth Authentication, JwtCheck JwtChec
 		startTime:           time.Now(),
 		RootPathGetCounter:  RootPathGetCounter,
 		PathNotFoundCounter: rootPathNotFoundCounter,
-		Authenticator:       Auth,
-		JwtCheck:            JwtCheck,
-		VersionReader:       Ver,
+		// Authenticator, JwtCheck, and VersionReader are nil by default
 		httpServer: http.Server{
 			Addr:         listenAddress,       // configure the bind address
 			Handler:      myServerMux,         // set the http mux
@@ -93,41 +89,54 @@ func NewGoHttpServer(listenAddress string, Auth Authentication, JwtCheck JwtChec
 			IdleTimeout:  defaultIdleTimeout,  // max time for connections using TCP Keep-Alive
 		},
 	}
+
+	for _, opt := range opts {
+		opt(&myServer)
+	}
+
 	myServer.routes()
 
 	return &myServer
 }
 
 // CreateNewServerFromEnvOrFail creates a new server from environment variables or fails
-func CreateNewServerFromEnvOrFail(
-	defaultPort int,
-	defaultServerIp string,
-	myAuthenticator Authentication,
-	myJwt JwtChecker,
-	myVersionReader VersionReader,
-	l golog.MyLogger,
-) *Server {
+func CreateNewServerFromEnvOrFail(defaultPort int, defaultServerIp, serverName string, l golog.MyLogger, opts ...ServerOption) *Server {
 	listenPort := config.GetPortFromEnvOrPanic(defaultPort)
 	listenAddr := fmt.Sprintf("%s:%d", defaultServerIp, listenPort)
 	l.Info("HTTP server will listen : %s", listenAddr)
-
-	server := NewGoHttpServer(listenAddr, myAuthenticator, myJwt, myVersionReader, l)
+	server := NewGoHttpServer(serverName, listenAddr, l, opts...)
 	return server
-
 }
 
 // (*Server) routes initializes all the default handlers paths of this web server, it is called inside the NewGoHttpServer constructor
 func (s *Server) routes() {
 
 	s.router.Handle("GET /time", GetTimeHandler(s.logger))
-	s.router.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
-		TraceRequest("GetVersionHandler", r, s.logger)
-		err := s.Json(w, s.VersionReader.GetVersionInfo(), http.StatusOK, "  ")
-		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
+	s.router.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		// Set the content type to plain text
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+		// Write the HTTP status code
+		w.WriteHeader(http.StatusOK)
+
+		// Define the path to disallow (e.g., "/" to disallow everything)
+		disallowPath := "/api/"
+
+		// Write the content using your template
+		fmt.Fprintf(w, robotsDisallowTemplate, disallowPath)
 	})
+
+	// Only add the version route if a VersionReader is configured
+	if s.VersionReader != nil {
+		s.router.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
+			TraceRequest("GetVersionHandler", r, s.logger)
+			err := s.Json(w, s.VersionReader.GetVersionInfo(), http.StatusOK, "  ")
+			if err != nil {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+		})
+	}
 	//expose the default prometheus metrics for Go applications
 	s.router.Handle("GET /metrics", NewPrometheusMiddleware(
 		s.registry, nil).
@@ -323,7 +332,7 @@ func getHtmlHeader(title string, description string) string {
 
 func getHtmlPage(title string, description string) string {
 	return getHtmlHeader(title, description) +
-		fmt.Sprintf("\n<body><div class=\"container\"><h4>%s</h4></div></body></html>", title)
+		fmt.Sprintf("\n<body><main class=\"container\"><h4>%s</h4><p>%s</p></main></body></html>", title, description)
 }
 func TraceRequest(handlerName string, r *http.Request, l golog.MyLogger) {
 	const formatTraceRequest = "TraceRequest:[%s] %s '%s', RemoteIP: [%s],id:%s\n"
