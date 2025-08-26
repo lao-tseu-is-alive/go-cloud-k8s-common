@@ -1,43 +1,35 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
     <title>goCloudK8sExampleFront</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js"></script>
 </head>
 <body>
-<div class="container">
+<main class="container">
+    <!-- The h3 tag will be dynamically updated with app name and version -->
     <h3 id="appInfoHeading">Loading App Info...</h3>
     <form method="post" action="/login" id="loginForm">
-        <div class="row">
-            <div class="six columns">
-                <label for="login">Login:</label><br/>
-                <input id="login" type="text" name="login" value="" class="u-full-width">
-            </div>
-            <div class="six columns">
-                <label for="password">Password:</label><br/>
-                <input id="password" type="password"
-                       placeholder="Enter your password here" class="u-full-width">
-                <input type="hidden" id="hashed" name="hashed" >
-            </div>
-        </div>
-        <input type="submit" class="u-pull-right">
+        <fieldset class="grid">
+            <input id="login" type="text" name="login" placeholder="enter the user login" class="u-full-width">
+            <input id="password" type="password" name="pass"
+                   placeholder="Enter your password here" class="u-full-width">
+            <input type="hidden" id="hashed" name="hashed">
+            <input type="submit" value="Log in">
+        </fieldset>
     </form>
-    <div class="row">
-        <div class="twelve columns">
-            <div id="msg"></div>
-        </div>
-    </div>
-    <div class="row">
-
-        <div class="twelve columns">
-            <label for="tokenExample">Try your Token in your bash terminal :</label>
-            <textarea class="u-full-width"  id="tokenExample" rows="3">                   </textarea>
-        </div>
-    </div>
-</div>
+    <hr>
+    <article id="msg"></article>
+    <hr>
+    <article>
+        <header>Try your Token in your bash terminal :</header>
+        <textarea  id="tokenExample" rows="5">                   </textarea>
+        <footer>adjust the host and protocol according to your confi</footer>
+    </article>
+</main>
 </body>
 </html>
 
@@ -88,9 +80,6 @@
         }
     }
 
-    // Call fetchAppInfo when the DOM content is fully loaded
-    document.addEventListener('DOMContentLoaded', fetchAppInfo);
-
     async function hashPasswordSHA256(password) {
         console.log(`in hashPasswordSHA256 function ${password}`);
         const encoder = new TextEncoder();
@@ -104,10 +93,11 @@
         e.preventDefault();
         console.log("in loginForm submit event :", e)
         const inputPassword = document.getElementById("password");
+        //const hashedPassword = hashPasswordSHA256(`${inputPassword.value}`);
         const hashedPassword = CryptoJS.SHA256(inputPassword.value);
         const inputHashedPassword = document.getElementById("hashed");
-        inputHashedPassword.value = hashedPassword;
-        console.log("hashedPassword", hashedPassword);
+        inputHashedPassword.value = hashedPassword.toString();
+        console.log("hashedPassword", inputHashedPassword.value);
         const inputs = loginForm.elements;
         if ((inputs.login.value.length > 0) && (inputs.password.value.length > 0)) {
             const data = new FormData(loginForm);
@@ -120,24 +110,30 @@
             });
             if (!response.ok) {
                 const errorMessage = await response.text();
+                // Display error message in the 'msg' div
                 msg.innerHTML = `<h4>${errorMessage}</h4>`;
-            } else { // Only parse JSON if response is OK
-                const jsonResponse = await response.json();
-                const niceToReadResponse = JSON.stringify(jsonResponse, null, 2);
-                if (Object.hasOwn(jsonResponse, 'token')) {
-                    token = jsonResponse['token'];
-                } else {
-                    msg.innerHTML = `<h4> token key not found in ${niceToReadResponse}</h4>`;
-                }
-                console.log(jsonResponse);
-                tokenEl.innerHTML = `export TOKEN="${token}"
-            curl -v  -H "Authorization: Bearer \${TOKEN}" http://localhost:9898/protected
-            `;
-                msg.innerHTML = `response from server<pre>${niceToReadResponse}</pre>`;
             }
+            const jsonResponse = await response.json();
+            const niceToReadResponse = JSON.stringify(jsonResponse, null, 2);
+            if (Object.hasOwn(jsonResponse, 'token')) {
+                token = jsonResponse['token'];
+            } else {
+                msg.innerHTML = `<h4> token key not found in ${niceToReadResponse}</h4>`;
+            }
+            console.log(jsonResponse);
+            tokenEl.innerHTML = `
+export TOKEN="${token}"
+
+curl -kv  -H "Authorization: Bearer \${TOKEN}" https://localhost:9999/api/v1/secret|jq
+            `;
+            msg.innerHTML = `response from server<pre>${niceToReadResponse}</pre>`;
         } else {
             msg.innerHTML = "<h4>Login and password values cannot be empty</h4>";
         }
     });
+
+
+    // Call fetchAppInfo when the DOM content is fully loaded
+    document.addEventListener('DOMContentLoaded', fetchAppInfo);
 
 </script>

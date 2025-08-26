@@ -270,3 +270,14 @@ func GetAppInfoHandler(s *Server) http.HandlerFunc {
 		}
 	}
 }
+
+// GetRedirectHandler creates a handler that redirects all requests to targetURL with 301 Permanent Redirect.
+func GetRedirectHandler(targetURL string, l golog.MyLogger) http.HandlerFunc {
+	handlerName := "GetRedirectHandler"
+	l.Debug(initCallMsg, handlerName)
+	return func(w http.ResponseWriter, r *http.Request) {
+		l.Info("Redirecting http request for '%s' to '%s'", r.Host, targetURL)
+		// Perform a 301 Permanent Redirect
+		http.Redirect(w, r, targetURL, http.StatusMovedPermanently)
+	}
+}

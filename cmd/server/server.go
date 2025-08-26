@@ -142,7 +142,7 @@ func main() {
 	mux := server.GetRouter()
 	mux.Handle(fmt.Sprintf("POST %s", jwtAuthUrl), gohttp.GetLoginPostHandler(server))
 	// Protected endpoint (using jwtMiddleware)
-	mux.Handle("GET /protected", myJwt.JwtMiddleware(GetProtectedHandler(server, jwtContextKey, l)))
+	mux.Handle("GET /api/v1/secret", myJwt.JwtMiddleware(GetProtectedHandler(server, jwtContextKey, l)))
 
 	mux.Handle("GET /", gohttp.NewPrometheusMiddleware(
 		server.GetPrometheusRegistry(), nil).

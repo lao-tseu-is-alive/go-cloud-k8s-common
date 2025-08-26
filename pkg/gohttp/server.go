@@ -252,6 +252,27 @@ func (s *Server) startHttpsAutocertServer() {
 	}()
 }
 
+// startHttpRedirectServer starts a server  on a custom port to redirect to HTTPS.
+func (s *Server) startHttpRedirectServer(listenAddr, targetUrl string) {
+	// Create a new server for the redirection
+	redirectSrv := &http.Server{
+		Addr:         listenAddr,
+		Handler:      GetRedirectHandler(targetUrl, s.logger),
+		ReadTimeout:  defaultReadTimeout,
+		WriteTimeout: defaultWriteTimeout,
+		IdleTimeout:  defaultIdleTimeout,
+	}
+
+	// Run the redirect server in a goroutine so it doesn't block
+	go func() {
+		s.logger.Info("Starting HTTP->HTTPS redirect server on :%s", listenAddr)
+		err := redirectSrv.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Error("💥💥 ERROR: Could not start HTTP->HTTPS redirect server: %s", err)
+		}
+	}()
+}
+
 // Json writes a JSON response with the given status code
 func (s *Server) Json(w http.ResponseWriter, result interface{}, statusCode int, indent string) error {
 	// Set headers before any potential error occurs
