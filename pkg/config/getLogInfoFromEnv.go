@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"unicode/utf8"
+
+	"github.com/lao-tseu-is-alive/go-cloud-k8s-common/pkg/golog"
 )
 
 // GetLogWriterFromEnvOrPanic returns the name of the filename to use for LOG from the content of the env variable :
@@ -35,5 +38,31 @@ func GetLogWriterFromEnvOrPanic(defaultLogName string) io.Writer {
 			panic(fmt.Sprintf("💥💥 ERROR: LOG_FILE %q could not be open : %v", logFileName, err))
 		}
 		return file
+	}
+}
+
+// GetLogLevelFromEnvOrPanic reads LOG_LEVEL from environment and returns a golog.Level.
+// Accepted values (case-insensitive): debug, info, warn, error, fatal, or their numeric equivalents (0-4).
+// If unset, returns defaultLevel. Panics on invalid value.
+func GetLogLevelFromEnvOrPanic(defaultLevel golog.Level) golog.Level {
+	val, ok := os.LookupEnv("LOG_LEVEL")
+	if !ok || strings.TrimSpace(val) == "" {
+		return defaultLevel
+	}
+
+	v := strings.TrimSpace(strings.ToLower(val))
+	switch v {
+	case "debug", "0":
+		return golog.DebugLevel
+	case "info", "1":
+		return golog.InfoLevel
+	case "warn", "warning", "2":
+		return golog.WarnLevel
+	case "error", "3":
+		return golog.ErrorLevel
+	case "fatal", "4":
+		return golog.FatalLevel
+	default:
+		panic(fmt.Sprintf("💥💥 ERROR: invalid LOG_LEVEL %q (accepted: debug, info, warn, error, fatal or 0-4)", val))
 	}
 }

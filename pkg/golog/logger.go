@@ -36,8 +36,8 @@ func NewLogger(loggerType string, out io.Writer, logLevel Level, prefix string) 
 	)
 
 	switch loggerType {
-	case "production":
-		// here we can handle structured  json log
+	case "zap":
+		logger, err = NewZapLogger(logLevel, prefix)
 	default:
 		logger, err = NewSimpleLogger(out, logLevel, prefix)
 		if err != nil {

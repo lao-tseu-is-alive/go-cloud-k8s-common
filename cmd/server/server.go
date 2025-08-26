@@ -87,7 +87,12 @@ func GetProtectedHandler(server *gohttp.Server, jwtContextKey string, l golog.My
 }
 
 func main() {
-	l, err := golog.NewLogger("simple", config.GetLogWriterFromEnvOrPanic(defaultLogName), golog.DebugLevel, APP)
+	l, err := golog.NewLogger(
+		"simple",
+		config.GetLogWriterFromEnvOrPanic(defaultLogName),
+		config.GetLogLevelFromEnvOrPanic(golog.InfoLevel),
+		APP,
+	)
 	if err != nil {
 		log.Fatalf("💥💥 error golog.NewLogger error: %v'\n", err)
 	}
