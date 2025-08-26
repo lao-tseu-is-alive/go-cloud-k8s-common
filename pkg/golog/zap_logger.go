@@ -2,6 +2,7 @@ package golog
 
 import (
 	"fmt"
+	"io"
 	"log"
 
 	"go.uber.org/zap"
@@ -13,26 +14,25 @@ type ZapLogger struct {
 	level Level
 }
 
-// NewZapLogger creates a JSON logger backed by Uber Zap that conforms to MyLogger.
-// It maps golog.Level to zapcore.Level and configures JSON output with RFC3339 timestamps and caller info.
-func NewZapLogger(logLevel Level, prefix string) (MyLogger, error) {
-	// Map golog.Level to zapcore.Level
-	var zl zapcore.Level
-	switch logLevel {
+func mapLevel(l Level) zapcore.Level {
+	switch l {
 	case DebugLevel:
-		zl = zapcore.DebugLevel
+		return zapcore.DebugLevel
 	case InfoLevel:
-		zl = zapcore.InfoLevel
+		return zapcore.InfoLevel
 	case WarnLevel:
-		zl = zapcore.WarnLevel
+		return zapcore.WarnLevel
 	case ErrorLevel:
-		zl = zapcore.ErrorLevel
+		return zapcore.ErrorLevel
 	case FatalLevel:
-		zl = zapcore.FatalLevel
+		return zapcore.FatalLevel
 	default:
-		zl = zapcore.InfoLevel
+		return zapcore.InfoLevel
 	}
+}
 
+// NewZapLogger creates a JSON logger backed by Zap that writes to out and respects golog.Level.
+func NewZapLogger(out io.Writer, logLevel Level, prefix string) (MyLogger, error) {
 	encCfg := zapcore.EncoderConfig{
 		TimeKey:        "ts",
 		LevelKey:       "level",
@@ -46,26 +46,19 @@ func NewZapLogger(logLevel Level, prefix string) (MyLogger, error) {
 		EncodeDuration: zapcore.SecondsDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
+	encoder := zapcore.NewJSONEncoder(encCfg)
 
-	cfg := zap.Config{
-		Level:            zap.NewAtomicLevelAt(zl),
-		Development:      false,
-		Encoding:         "json",
-		EncoderConfig:    encCfg,
-		OutputPaths:      []string{"stdout"},
-		ErrorOutputPaths: []string{"stderr"},
-		InitialFields:    map[string]any{},
-	}
+	ws := zapcore.AddSync(out) // honors any io.Writer: file, stdout, stderr, io.Discard
+	core := zapcore.NewCore(encoder, ws, mapLevel(logLevel))
 
+	// add optional prefix as a constant field
+	var opts []zap.Option
+	opts = append(opts, zap.AddCaller(), zap.AddCallerSkip(1))
 	if prefix != "" {
-		cfg.InitialFields["prefix"] = prefix
+		opts = append(opts, zap.Fields(zap.String("prefix", prefix)))
 	}
 
-	l, err := cfg.Build(zap.AddCaller(), zap.AddCallerSkip(1))
-	if err != nil {
-		return nil, fmt.Errorf("build zap logger: %w", err)
-	}
-
+	l := zap.New(core, opts...)
 	return &ZapLogger{sug: l.Sugar(), level: logLevel}, nil
 }
 
@@ -74,30 +67,24 @@ func (z *ZapLogger) Debug(msg string, v ...interface{}) {
 		z.sug.Debugf(msg, v...)
 	}
 }
-
 func (z *ZapLogger) Info(msg string, v ...interface{}) {
 	if z.level <= InfoLevel {
 		z.sug.Infof(msg, v...)
 	}
 }
-
 func (z *ZapLogger) Warn(msg string, v ...interface{}) {
 	if z.level <= WarnLevel {
 		z.sug.Warnf(msg, v...)
 	}
 }
-
 func (z *ZapLogger) Error(msg string, v ...interface{}) {
 	if z.level <= ErrorLevel {
 		z.sug.Errorf(msg, v...)
 	}
 }
+func (z *ZapLogger) Fatal(msg string, v ...interface{}) { z.sug.Fatalf(msg, v...) }
 
-func (z *ZapLogger) Fatal(msg string, v ...interface{}) {
-	// zap.SugaredLogger.Fatalf calls os.Exit(1) after logging
-	z.sug.Fatalf(msg, v...)
-}
-
+// GetDefaultLogger cannot return a *log.Logger for zap; mirror SimpleLogger's signature by returning an error.
 func (z *ZapLogger) GetDefaultLogger() (*log.Logger, error) {
 	// Not applicable for zap; stdlib logger not available here
 	return nil, fmt.Errorf("not supported for zap JSON logger")

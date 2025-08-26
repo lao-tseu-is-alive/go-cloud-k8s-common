@@ -37,7 +37,7 @@ func NewLogger(loggerType string, out io.Writer, logLevel Level, prefix string) 
 
 	switch loggerType {
 	case "zap":
-		logger, err = NewZapLogger(logLevel, prefix)
+		logger, err = NewZapLogger(out, logLevel, prefix)
 	default:
 		logger, err = NewSimpleLogger(out, logLevel, prefix)
 		if err != nil {
