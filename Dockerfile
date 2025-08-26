@@ -27,7 +27,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the source from the current directory to the Working Directory inside the container
-COPY "cmd/server" ./server
+COPY "cmd/fullServer" ./server
 COPY pkg ./pkg
 
 # Clean the APP_REPOSITORY for ldflags

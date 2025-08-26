@@ -14,17 +14,17 @@ type mockLogger struct {
 	errorMessages []string
 }
 
-func (m *mockLogger) Debug(msg string, v ...interface{}) {
+func (m *mockLogger) Debug(msg string, v ...any) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (m *mockLogger) Warn(msg string, v ...interface{}) {
+func (m *mockLogger) Warn(msg string, v ...any) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (m *mockLogger) Fatal(msg string, v ...interface{}) {
+func (m *mockLogger) Fatal(msg string, v ...any) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -34,12 +34,12 @@ func (m *mockLogger) GetDefaultLogger() (*log.Logger, error) {
 	panic("implement me")
 }
 
-func (m *mockLogger) Info(format string, args ...interface{}) {
-	m.infoMessages = append(m.infoMessages, fmt.Sprintf(format, args...))
+func (m *mockLogger) Info(msg string, v ...any) {
+	m.infoMessages = append(m.infoMessages, fmt.Sprintf(msg, v...))
 }
 
-func (m *mockLogger) Error(format string, args ...interface{}) {
-	m.errorMessages = append(m.errorMessages, fmt.Sprintf(format, args...))
+func (m *mockLogger) Error(msg string, v ...any) {
+	m.errorMessages = append(m.errorMessages, fmt.Sprintf(msg, v...))
 }
 
 func TestPrintWantedReceived(t *testing.T) {

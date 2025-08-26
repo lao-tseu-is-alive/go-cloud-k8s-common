@@ -62,27 +62,27 @@ func NewZapLogger(out io.Writer, logLevel Level, prefix string) (MyLogger, error
 	return &ZapLogger{sug: l.Sugar(), level: logLevel}, nil
 }
 
-func (z *ZapLogger) Debug(msg string, v ...interface{}) {
+func (z *ZapLogger) Debug(msg string, v ...any) {
 	if z.level <= DebugLevel {
 		z.sug.Debugf(msg, v...)
 	}
 }
-func (z *ZapLogger) Info(msg string, v ...interface{}) {
+func (z *ZapLogger) Info(msg string, v ...any) {
 	if z.level <= InfoLevel {
 		z.sug.Infof(msg, v...)
 	}
 }
-func (z *ZapLogger) Warn(msg string, v ...interface{}) {
+func (z *ZapLogger) Warn(msg string, v ...any) {
 	if z.level <= WarnLevel {
 		z.sug.Warnf(msg, v...)
 	}
 }
-func (z *ZapLogger) Error(msg string, v ...interface{}) {
+func (z *ZapLogger) Error(msg string, v ...any) {
 	if z.level <= ErrorLevel {
 		z.sug.Errorf(msg, v...)
 	}
 }
-func (z *ZapLogger) Fatal(msg string, v ...interface{}) { z.sug.Fatalf(msg, v...) }
+func (z *ZapLogger) Fatal(msg string, v ...any) { z.sug.Fatalf(msg, v...) }
 
 // GetDefaultLogger cannot return a *log.Logger for zap; mirror SimpleLogger's signature by returning an error.
 func (z *ZapLogger) GetDefaultLogger() (*log.Logger, error) {

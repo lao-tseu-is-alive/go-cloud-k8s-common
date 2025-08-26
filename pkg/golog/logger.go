@@ -5,28 +5,33 @@ import (
 	"log"
 )
 
+// MyLogger defines a minimal leveled logging interface with printf-style methods.
+// Implementations should treat v as fmt.Sprintf arguments and honor the configured level.
 type MyLogger interface {
-	Debug(msg string, v ...interface{})
-	Info(msg string, v ...interface{})
-	Warn(msg string, v ...interface{})
-	Error(msg string, v ...interface{})
-	Fatal(msg string, v ...interface{})
+	Debug(msg string, v ...any)
+	Info(msg string, v ...any)
+	Warn(msg string, v ...any)
+	Error(msg string, v ...any)
+	Fatal(msg string, v ...any)
 	GetDefaultLogger() (*log.Logger, error)
 }
 
+// Level represents the logging verbosity threshold.
+// Lower values are more verbose (Debug) and higher values are more severe (Fatal).
 type Level int8
 
+// Supported logging levels in increasing order of severity.
 const (
-	// DebugLevel defines debug log level.
-	DebugLevel Level = iota
-	// InfoLevel defines info log level.
+	// DebugLevel enables verbose diagnostic logs useful during development.
+	DebugLevel Level = iota // most verbose
+	// InfoLevel enables general informational logs for normal operation.
 	InfoLevel
-	// WarnLevel defines warn log level.
+	// WarnLevel enables logs for unexpected but non-fatal conditions.
 	WarnLevel
-	// ErrorLevel defines error log level.
+	// ErrorLevel enables logs for failures that require attention.
 	ErrorLevel
-	// FatalLevel defines fatal log level.
-	FatalLevel
+	// FatalLevel logs a critical error and typically terminates the process.
+	FatalLevel // most severe
 )
 
 func NewLogger(loggerType string, out io.Writer, logLevel Level, prefix string) (MyLogger, error) {
