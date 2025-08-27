@@ -1,6 +1,6 @@
 module github.com/lao-tseu-is-alive/go-cloud-k8s-common
 
-go 1.24.5
+go 1.25
 
 require (
 	github.com/cristalhq/jwt/v5 v5.4.0
