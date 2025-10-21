@@ -142,6 +142,17 @@ func main() {
 	// curl -vv  -X GET  -H 'Content-Type: application/json'  http://localhost:9999/time	==>200 OK , {"time":"2024-07-15T15:30:21+02:00"}
 	server.AddRoute("GET /hello", gohttp.GetStaticPageHandler("Hello", "Hello World!", l))
 	server.AddRoute("GET /info", gohttp.GetInfoHandler(server))
+	server.AddRoute("GET /health", server.GetHealthHandler(
+		func(msg string) bool {
+			return true
+		},
+		fmt.Sprintf("%s v%s", version.APP, version.VERSION)))
+
+	server.AddRoute("GET /readiness", server.GetHealthHandler(
+		func(msg string) bool {
+			return true
+		},
+		fmt.Sprintf("%s v%s", version.APP, version.VERSION)))
 	server.AddRoute("GET /goAppInfo", gohttp.GetAppInfoHandler(server))
 
 	mux := server.GetRouter()
